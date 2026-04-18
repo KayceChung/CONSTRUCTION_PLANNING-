@@ -19,6 +19,8 @@ export interface Task {
   note?: string
   order: number
   fromTemplateId?: string | null // Thêm field này
+  assignee?: string // Người phụ trách
+  taskDeadline?: string // Deadline riêng của task (khác với deadline chung)
 }
 
 export type ProjectCategory = 'new_construction' | 'renovation' | 'other'
@@ -101,7 +103,8 @@ export interface Project {
   createdAt: string
   webhookUrl: string
   assignedStaff: string[]
-  projectTypeId?: string | null // Thêm field này
+  projectTypeId?: string | null
+  notes?: string // Ghi chú dự án
 }
 
 export interface Staff {

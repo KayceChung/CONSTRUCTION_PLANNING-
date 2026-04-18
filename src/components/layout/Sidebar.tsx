@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { User } from '../../types'
-import { Home, LayoutGrid, LogOut, ListChecks } from 'lucide-react'
+import { Home, LayoutGrid, LogOut, ListChecks, Settings } from 'lucide-react'
 import Button from '../ui/Button'
 
 interface SidebarProps {
@@ -20,6 +20,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
 
   if (user.role === 'manager') {
     navItems.push({ label: 'Khách hàng', to: '/customers', icon: ListChecks })
+    navItems.push({ label: 'Cài đặt', to: '/settings', icon: Settings })
   }
 
   return (

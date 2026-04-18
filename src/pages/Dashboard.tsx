@@ -61,9 +61,9 @@ export default function Dashboard({ showToast }: DashboardProps) {
             <p className="text-sm uppercase tracking-[0.18em] text-brand-500">Báo cáo tiến độ</p>
             <h2 className="mt-2 text-2xl font-semibold text-slate-900">Dự án đang theo dõi</h2>
           </div>
-          <Button type="button" variant="secondary" className="flex items-center gap-2" onClick={() => showToast('Tính năng thêm dự án có thể mở rộng sau này')}>
+          <Link to="/projects?action=new" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-900 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700">
             <Plus size={18} /> Thêm dự án
-          </Button>
+          </Link>
         </div>
         {warningTasks.length > 0 ? (
           <div className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 p-4">

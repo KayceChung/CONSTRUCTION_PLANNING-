@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useMemo, useState, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useProjectStore } from '../stores/useProjectStore'
 import { useAuthStore } from '../stores/useAuthStore'
 import { calculateProjectProgress } from '../utils/progress'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import ConfirmModal from '../components/modals/ConfirmModal'
+import ProjectCreateModal from '../components/modals/ProjectCreateModal'
 import { Project } from '../types'
 
 interface ProjectListProps {
@@ -13,51 +14,32 @@ interface ProjectListProps {
 }
 
 export default function ProjectList({ showToast }: ProjectListProps) {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const projects = useProjectStore((state) => state.projects)
-  const updateProject = useProjectStore((state) => state.updateProject)
   const deleteProject = useProjectStore((state) => state.deleteProject)
   const user = useAuthStore((state) => state.user)
-  const [showForm, setShowForm] = useState(false)
   const [activeProject, setActiveProject] = useState<Project | null>(null)
   const [showDelete, setShowDelete] = useState(false)
-  const [newProjectName, setNewProjectName] = useState('')
-  const [location, setLocation] = useState('')
-  const [client, setClient] = useState('')
-  const [webhookUrl, setWebhookUrl] = useState('')
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   const canEdit = user?.role === 'manager'
 
-  const handleAddProject = () => {
-    if (!newProjectName || !location || !client) {
-      showToast('Vui lòng nhập đầy đủ thông tin dự án', 'error')
-      return
+  // Check for ?action=new in URL and open modal
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      setShowCreateModal(true)
+      // Remove the query param from URL
+      navigate('/projects', { replace: true })
     }
-    const project: Project = {
-      id: `proj-${Date.now()}`,
-      name: newProjectName,
-      location,
-      client,
-      customerId: 'unknown',
-      category: 'other',
-      categoryNote: 'Dự án được tạo nhanh từ trang danh sách',
-      address: {
-        fullAddress: location,
-        province: 'TP. HCM'
-      },
-      contractValue: 0,
-      paidAmount: 0,
-      paymentNote: '',
-      attachments: [],
-      startDate: new Date().toISOString().slice(0, 10),
-      endDate: new Date(new Date().setMonth(new Date().getMonth() + 6)).toISOString().slice(0, 10),
-      createdAt: new Date().toISOString(),
-      webhookUrl,
-      assignedStaff: [],
-      tasks: []
-    }
-    useProjectStore.getState().addProject(project)
-    setShowForm(false)
-    showToast('Dự án mới đã được tạo', 'success')
+  }, [searchParams, navigate])
+
+  const handleNavigateToCreate = () => {
+    setShowCreateModal(true)
+  }
+
+  const handleCloseCreateModal = () => {
+    setShowCreateModal(false)
   }
 
   return (
@@ -68,27 +50,11 @@ export default function ProjectList({ showToast }: ProjectListProps) {
           <h1 className="mt-2 text-3xl font-semibold text-slate-900">Quản lý dự án</h1>
         </div>
         {canEdit ? (
-          <Button type="button" onClick={() => setShowForm((value) => !value)}>
+          <Button type="button" onClick={handleNavigateToCreate}>
             Thêm dự án mới
           </Button>
         ) : null}
       </div>
-
-      {showForm ? (
-        <div className="rounded-3xl bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-slate-900">Dự án mới</h2>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <input className="rounded-3xl border border-slate-200 px-4 py-3" value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} placeholder="Tên dự án" />
-            <input className="rounded-3xl border border-slate-200 px-4 py-3" value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Địa điểm" />
-            <input className="rounded-3xl border border-slate-200 px-4 py-3" value={client} onChange={(event) => setClient(event.target.value)} placeholder="Chủ đầu tư" />
-            <input className="rounded-3xl border border-slate-200 px-4 py-3" value={webhookUrl} onChange={(event) => setWebhookUrl(event.target.value)} placeholder="Webhook URL (tùy chọn)" />
-          </div>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Button type="button" onClick={handleAddProject}>Lưu dự án</Button>
-            <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>Hủy</Button>
-          </div>
-        </div>
-      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {projects.map((project) => (
@@ -135,6 +101,8 @@ export default function ProjectList({ showToast }: ProjectListProps) {
           }}
         />
       ) : null}
+
+      <ProjectCreateModal isOpen={showCreateModal} onClose={handleCloseCreateModal} showToast={showToast} />
     </div>
   )
 }

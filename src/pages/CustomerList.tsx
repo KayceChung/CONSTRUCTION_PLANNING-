@@ -58,9 +58,9 @@ export default function CustomerList({ showToast }: { showToast: (message: strin
           <h1 className="mt-2 text-3xl font-semibold text-slate-900">Quản lý khách hàng</h1>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button type="button" onClick={() => navigate('/projects/new')}>
+          <Link to="/projects/new" className="inline-flex items-center justify-center rounded-2xl bg-brand-900 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700">
             Thêm dự án mới
-          </Button>
+          </Link>
         </div>
       </div>
 

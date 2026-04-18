@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import ProjectDetail from './pages/ProjectDetail'
 import ProjectList from './pages/ProjectList'
+import Settings from './pages/Settings'
 import Sidebar from './components/layout/Sidebar'
 import PageWrapper from './components/layout/PageWrapper'
 import Toast from './components/ui/Toast'
@@ -82,6 +83,10 @@ export default function App() {
                 <Route
                   path="/customers/:customerId"
                   element={user ? (user.role === 'manager' ? <CustomerDetail showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
+                />
+                <Route
+                  path="/settings"
+                  element={user ? (user.role === 'manager' ? <Settings showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
                 />
                 <Route path="*" element={<Navigate to={user ? (user.role === 'manager' ? '/' : '/projects') : '/login'} />} />
               </Routes>
