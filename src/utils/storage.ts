@@ -257,7 +257,7 @@ export function createSeedProjects(): Project[] {
       startDate: '2025-05-01',
       endDate: '2025-11-15',
       createdAt: new Date().toISOString(),
-      webhookUrl: '',
+      webhookUrl: 'https://yi7a1c8g.rpcld.co/webhook/00b8a546-422b-4786-ad00-0105bb20c435',
       assignedStaff: ['staff-manager', 'staff-nga'],
       tasks: [
         {
