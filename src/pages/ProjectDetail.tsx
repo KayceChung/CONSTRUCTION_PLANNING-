@@ -439,10 +439,10 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
       ) : null}
       {showEditProjectModal ? (
         <ProjectEditModal
+          isOpen={showEditProjectModal}
           project={project}
           onClose={() => setShowEditProjectModal(false)}
           onSave={saveProjectChanges}
-          showToast={showToast}
         />
       ) : null}
       {showConfirm ? (
