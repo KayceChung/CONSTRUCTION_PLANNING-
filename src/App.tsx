@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { useAuthStore } from './stores/useAuthStore'
+import { useCustomerStore } from './stores/useCustomerStore'
 import { useProjectStore } from './stores/useProjectStore'
+import { useStaffStore } from './stores/useStaffStore'
+import CustomerDetail from './pages/CustomerDetail'
+import CustomerList from './pages/CustomerList'
+import CreateProject from './pages/CreateProject'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import ProjectDetail from './pages/ProjectDetail'
@@ -20,12 +25,16 @@ export default function App() {
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
   const initProjects = useProjectStore((state) => state.initProjects)
+  const initCustomers = useCustomerStore((state) => state.initCustomers)
+  const initStaff = useStaffStore((state) => state.initStaff)
   const navigate = useNavigate()
   const [toasts, setToasts] = useState<ToastItem[]>([])
 
   useEffect(() => {
     initProjects()
-  }, [initProjects])
+    initCustomers()
+    initStaff()
+  }, [initProjects, initCustomers, initStaff])
 
   useEffect(() => {
     if (!user) {
@@ -59,8 +68,20 @@ export default function App() {
                   element={user ? <ProjectList showToast={showToast} /> : <Navigate to="/login" />}
                 />
                 <Route
+                  path="/projects/new"
+                  element={user ? (user.role === 'manager' ? <CreateProject showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
+                />
+                <Route
                   path="/projects/:projectId"
                   element={user ? <ProjectDetail showToast={showToast} /> : <Navigate to="/login" />}
+                />
+                <Route
+                  path="/customers"
+                  element={user ? (user.role === 'manager' ? <CustomerList showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
+                />
+                <Route
+                  path="/customers/:customerId"
+                  element={user ? (user.role === 'manager' ? <CustomerDetail showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
                 />
                 <Route path="*" element={<Navigate to={user ? (user.role === 'manager' ? '/' : '/projects') : '/login'} />} />
               </Routes>

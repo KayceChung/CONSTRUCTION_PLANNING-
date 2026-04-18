@@ -33,7 +33,7 @@
 
 ## GitHub Pages
 
-Dự án cấu hình `vite.config.ts` với `base: '/construction-pm/'` và workflow deploy tự động tại `.github/workflows/deploy.yml`.
+Dự án cấu hình `vite.config.ts` với `base: '/CONSTRUCTION_PLANNING-/'` và workflow deploy tự động tại `.github/workflows/deploy.yml`.
 
 ## Tính năng
 

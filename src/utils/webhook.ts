@@ -9,6 +9,11 @@ export async function sendWebhook(
 ): Promise<void> {
   if (!project.webhookUrl) return
 
+  const deadlineDate = task.deadline ? new Date(task.deadline) : null
+  const today = new Date()
+  const daysRemaining = deadlineDate ? Math.round((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null
+  const isOverdue = daysRemaining !== null ? daysRemaining < 0 && task.status !== 'done' : false
+
   const payload = {
     event,
     timestamp: new Date().toISOString(),
@@ -25,7 +30,12 @@ export async function sendWebhook(
       note: task.note || '',
       updatedBy: task.updatedBy,
       images: task.images,
-      weight: task.weight
+      deadline: task.deadline,
+      estimatedDays: task.estimatedDays,
+      startDate: task.startDate || null,
+      actualDays: task.actualDays ?? null,
+      isOverdue,
+      daysRemaining
     }
   }
 

@@ -1,7 +1,19 @@
-import { Project } from '../types'
+import { Project, Task } from '../types'
+
+export function getTaskWeight(totalTasks: number): number {
+  if (totalTasks === 0) return 0
+  return parseFloat((100 / totalTasks).toFixed(2))
+}
+
+export function calcProjectProgress(tasks: Task[]): number {
+  const activeTasks = tasks.filter((task) => task.status !== 'cancelled')
+  if (activeTasks.length === 0) return 0
+  const doneCount = activeTasks.filter((task) => task.status === 'done').length
+  return Math.round((doneCount / activeTasks.length) * 100)
+}
 
 export function calculateProjectProgress(project: Project): number {
-  return project.tasks.reduce((sum, task) => sum + (task.status === 'done' ? task.weight : 0), 0)
+  return calcProjectProgress(project.tasks)
 }
 
 export function progressColor(value: number): string {

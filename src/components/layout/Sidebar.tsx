@@ -8,13 +8,16 @@ interface SidebarProps {
   onLogout: () => void
 }
 
-const navItems = [
-  { label: 'Tổng quan', to: '/', icon: Home },
-  { label: 'Dự án', to: '/projects', icon: LayoutGrid }
-]
-
 export default function Sidebar({ user, onLogout }: SidebarProps) {
   const location = useLocation()
+  const navItems = [
+    { label: 'Tổng quan', to: '/', icon: Home },
+    { label: 'Dự án', to: '/projects', icon: LayoutGrid }
+  ]
+
+  if (user.role === 'manager') {
+    navItems.push({ label: 'Khách hàng', to: '/customers', icon: ListChecks })
+  }
 
   return (
     <aside className="hidden w-80 shrink-0 flex-col gap-6 border-r border-slate-200 bg-white px-6 py-6 lg:flex">

@@ -24,6 +24,8 @@ const columns: Array<{ id: TaskStatus; title: string; colorClass: string }> = [
 export default function KanbanBoard({ project, user, onOpenTask, onStatusChange }: KanbanBoardProps) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
+  const activeTaskCount = useMemo(() => project.tasks.filter((task) => task.status !== 'cancelled').length, [project.tasks])
+
   const itemsByStatus = useMemo(() => {
     return columns.reduce<Record<TaskStatus, Task[]>>((acc, column) => {
       acc[column.id] = project.tasks
@@ -65,7 +67,12 @@ export default function KanbanBoard({ project, user, onOpenTask, onStatusChange 
           <KanbanColumn key={column.id} id={column.id} title={column.title} colorClass={column.colorClass}>
             <SortableContext items={itemsByStatus[column.id].map((task) => task.id)} strategy={verticalListSortingStrategy}>
               {itemsByStatus[column.id].map((task) => (
-                <KanbanCard key={task.id} task={task} onOpen={() => onOpenTask(task)} />
+                <KanbanCard
+                  key={task.id}
+                  task={task}
+                  totalTasks={activeTaskCount}
+                  onOpen={() => onOpenTask(task)}
+                />
               ))}
             </SortableContext>
           </KanbanColumn>

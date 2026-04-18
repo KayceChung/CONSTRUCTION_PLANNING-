@@ -37,10 +37,22 @@ export default function ProjectList({ showToast }: ProjectListProps) {
       name: newProjectName,
       location,
       client,
+      customerId: 'unknown',
+      category: 'other',
+      categoryNote: 'Dự án được tạo nhanh từ trang danh sách',
+      address: {
+        fullAddress: location,
+        province: 'TP. HCM'
+      },
+      contractValue: 0,
+      paidAmount: 0,
+      paymentNote: '',
+      attachments: [],
       startDate: new Date().toISOString().slice(0, 10),
       endDate: new Date(new Date().setMonth(new Date().getMonth() + 6)).toISOString().slice(0, 10),
       createdAt: new Date().toISOString(),
       webhookUrl,
+      assignedStaff: [],
       tasks: []
     }
     useProjectStore.getState().addProject(project)

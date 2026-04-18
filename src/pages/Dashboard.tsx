@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { useProjectStore } from '../stores/useProjectStore'
 import { calculateProjectProgress, daysUntil, progressColor } from '../utils/progress'
 import Button from '../components/ui/Button'
-import { Circle, CalendarDays, SquarePlus } from 'lucide-react'
+import { Circle, CalendarDays, Plus } from 'lucide-react'
 
 interface DashboardProps {
   showToast: (message: string) => void
@@ -21,6 +21,22 @@ export default function Dashboard({ showToast }: DashboardProps) {
     () => projects.filter((project) => project.tasks.every((task) => task.status === 'done')).length,
     [projects]
   )
+
+  const warningTasks = useMemo(() => {
+    const items = projects.flatMap((project) =>
+      project.tasks
+        .filter((task) => task.status !== 'done' && task.deadline)
+        .map((task) => ({
+          project,
+          task,
+          daysRemaining: Math.round((new Date(task.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        }))
+    )
+
+    return items
+      .filter((item) => item.daysRemaining <= 7)
+      .sort((a, b) => a.daysRemaining - b.daysRemaining)
+  }, [projects])
 
   return (
     <div className="space-y-6">
@@ -46,9 +62,32 @@ export default function Dashboard({ showToast }: DashboardProps) {
             <h2 className="mt-2 text-2xl font-semibold text-slate-900">Dự án đang theo dõi</h2>
           </div>
           <Button type="button" variant="secondary" className="flex items-center gap-2" onClick={() => showToast('Tính năng thêm dự án có thể mở rộng sau này')}>
-            <SquarePlus size={18} /> Thêm dự án
+            <Plus size={18} /> Thêm dự án
           </Button>
         </div>
+        {warningTasks.length > 0 ? (
+          <div className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-800">
+              <CalendarDays size={18} /> ⚠️ Hạng mục sắp đến hạn
+            </div>
+            <div className="space-y-3">
+              {warningTasks.map(({ project, task, daysRemaining }) => (
+                <div key={task.id} className="rounded-3xl border border-amber-200 bg-white px-4 py-3 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-700">
+                    <span className="font-semibold">{project.name} › {task.title}</span>
+                    <span className={daysRemaining < 0 ? 'text-rose-600' : 'text-amber-700'}>
+                      {daysRemaining < 0 ? `Quá hạn ${Math.abs(daysRemaining)} ngày` : `Còn ${daysRemaining} ngày`}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                    <span>Trạng thái: {task.status.replace('_', ' ')}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1">{task.deadline}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid gap-4 lg:grid-cols-2">
           {projects.map((project) => {

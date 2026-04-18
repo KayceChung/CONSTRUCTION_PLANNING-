@@ -2,7 +2,7 @@ import clsx from 'clsx'
 
 interface BadgeProps {
   label: string
-  type?: 'todo' | 'in_progress' | 'done' | 'adjustment' | 'pending' | 'cancelled'
+  type?: 'todo' | 'in_progress' | 'done' | 'adjustment' | 'pending' | 'cancelled' | 'primary' | 'success' | 'secondary'
 }
 
 const badgeStyles: Record<NonNullable<BadgeProps['type']>, string> = {
@@ -11,7 +11,10 @@ const badgeStyles: Record<NonNullable<BadgeProps['type']>, string> = {
   done: 'bg-emerald-100 text-emerald-700 border-emerald-300',
   adjustment: 'bg-amber-100 text-amber-700 border-amber-300',
   pending: 'bg-orange-100 text-orange-700 border-orange-300',
-  cancelled: 'bg-rose-100 text-rose-700 border-rose-300'
+  cancelled: 'bg-rose-100 text-rose-700 border-rose-300',
+  primary: 'bg-blue-100 text-blue-700 border-blue-300',
+  success: 'bg-emerald-100 text-emerald-700 border-emerald-300',
+  secondary: 'bg-slate-200 text-slate-700 border-slate-300'
 }
 
 export default function Badge({ label, type = 'todo' }: BadgeProps) {
