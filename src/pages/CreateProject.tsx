@@ -10,6 +10,7 @@ import { Attachment, Customer, Project, Task, TaskStatus } from '../types'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import NewCustomerModal from '../components/modals/NewCustomerModal'
+import TemplateEditorModal from '../components/modals/TemplateEditorModal'
 import { formatDate } from '../utils/progress'
 
 interface LocationState {
@@ -75,6 +76,10 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   const staff = useStaffStore((state) => state.staff)
   const projectTypes = useProjectTypeStore((state) => state.projectTypes)
   const getDefaultTaskTemplates = useProjectTypeStore((state) => state.getDefaultTaskTemplates)
+  const getTaskTemplatesByProjectType = useProjectTypeStore((state) => state.getTaskTemplatesByProjectType)
+  const addTaskTemplate = useProjectTypeStore((state) => state.addTaskTemplate)
+  const updateTaskTemplate = useProjectTypeStore((state) => state.updateTaskTemplate)
+  const deleteTaskTemplate = useProjectTypeStore((state) => state.deleteTaskTemplate)
 
   const existingCustomer = useMemo(
     () => customers.find((customer) => customer.id === state?.customerId),
@@ -190,6 +195,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   const [webhookUrl, setWebhookUrl] = useState('')
   const [selectedClientId, setSelectedClientId] = useState('')
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false)
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false)
   const [pendingNewCustomer, setPendingNewCustomer] = useState<{ fullName: string; phone: string; phone2?: string; email?: string; address?: string; note?: string } | null>(null)
 
   const [category, setCategory] = useState<'new_construction' | 'renovation' | 'other'>('new_construction')
@@ -198,6 +204,16 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   const [paidAmount, setPaidAmount] = useState('0')
   const [paymentNote, setPaymentNote] = useState('')
   const [attachments, setAttachments] = useState<Attachment[]>([])
+
+  const selectedProjectType = useMemo(
+    () => projectTypes.find((type) => type.id === selectedProjectTypeId),
+    [projectTypes, selectedProjectTypeId]
+  )
+
+  const selectedTemplates = useMemo(
+    () => (selectedProjectTypeId ? getTaskTemplatesByProjectType(selectedProjectTypeId) : []),
+    [getTaskTemplatesByProjectType, selectedProjectTypeId]
+  )
 
   const filteredCustomers = useMemo(() => {
     const query = searchText.trim().toLowerCase()

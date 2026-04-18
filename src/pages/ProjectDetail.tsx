@@ -10,6 +10,7 @@ import ProgressBar from '../components/ui/ProgressBar'
 import TaskModal from '../components/modals/TaskModal'
 import ConfirmModal from '../components/modals/ConfirmModal'
 import CreateTaskModal from '../components/modals/CreateTaskModal'
+import ProjectEditModal from '../components/modals/ProjectEditModal'
 import KanbanBoard from '../components/kanban/KanbanBoard'
 import { calculateProjectProgress, formatDate, daysUntil } from '../utils/progress'
 import { sendWebhook } from '../utils/webhook'
@@ -40,6 +41,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   const addTask = useProjectStore((state) => state.addTask)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false)
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false)
   const [showAttachments, setShowAttachments] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [viewMode, setViewMode] = useState<'kanban' | 'timeline'>('kanban')
@@ -157,6 +159,11 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     showToast('Cập nhật webhook thành công', 'success')
   }
 
+  const saveProjectChanges = (updates: Partial<Project>) => {
+    updateProject(project.id, updates)
+    showToast('Cập nhật dự án thành công', 'success')
+  }
+
   const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
     const task = project.tasks.find((item) => item.id === taskId)
     if (!task) return
@@ -183,6 +190,9 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
         description={`Khách hàng: ${customer?.fullName || project.client} · ${project.address?.fullAddress || project.location}`}
         actions={
           <div className="flex flex-wrap gap-3">
+            <Button type="button" onClick={() => setShowEditProjectModal(true)}>
+              Chỉnh sửa dự án
+            </Button>
             <Button type="button" onClick={() => setShowCreateTaskModal(true)}>
               Thêm hạng mục
             </Button>

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { User } from '../../types'
 import { Home, LayoutGrid, LogOut, ListChecks } from 'lucide-react'
@@ -9,7 +10,9 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ user, onLogout }: SidebarProps) {
+  const [logoError, setLogoError] = useState(false)
   const location = useLocation()
+  const logoUrl = `${(import.meta as any).env?.BASE_URL || '/'}logo.png`
   const navItems = [
     { label: 'Tổng quan', to: '/', icon: Home },
     { label: 'Dự án', to: '/projects', icon: LayoutGrid }
@@ -23,7 +26,16 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
     <aside className="hidden w-80 shrink-0 flex-col gap-6 border-r border-slate-200 bg-white px-6 py-6 lg:flex">
       <div>
         <div className="mb-8 inline-flex items-center gap-3 text-2xl font-semibold text-brand-900">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-100">C</span>
+          {!logoError ? (
+            <img
+              src={logoUrl}
+              alt="ConstructTrack Logo"
+              className="h-10 w-10 rounded-2xl object-cover"
+              onError={() => setLogoError(true)}
+            />
+          ) : (
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-100 text-lg font-bold text-brand-900">C</span>
+          )}
           ConstructTrack
         </div>
         <div className="space-y-1 text-sm text-slate-600">
