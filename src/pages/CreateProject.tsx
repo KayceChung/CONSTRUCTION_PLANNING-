@@ -8,6 +8,7 @@ import { provinces } from '../constants/provinces'
 import { Attachment, Customer, Project } from '../types'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
+import NewCustomerModal from '../components/modals/NewCustomerModal'
 import { formatDate } from '../utils/progress'
 
 interface LocationState {
@@ -70,6 +71,8 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   const [projectEnd, setProjectEnd] = useState('')
   const [selectedSupervisors, setSelectedSupervisors] = useState<string[]>([])
   const [webhookUrl, setWebhookUrl] = useState('')
+  const [selectedClientId, setSelectedClientId] = useState('')
+  const [showNewCustomerModal, setShowNewCustomerModal] = useState(false)
 
   const [category, setCategory] = useState<'new_construction' | 'renovation' | 'other'>('new_construction')
   const [categoryNote, setCategoryNote] = useState('')
@@ -85,6 +88,24 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
       customer.fullName.toLowerCase().includes(query) || customer.phone.includes(query)
     )
   }, [customers, searchText])
+
+  const handleNewCustomerSubmit = (customerData: {
+    fullName: string
+    phone: string
+    phone2?: string
+    email?: string
+    address?: string
+    note?: string
+  }) => {
+    const newCustomer: Customer = {
+      id: `cust-${Date.now()}`,
+      ...customerData,
+      createdAt: new Date().toISOString(),
+      projectIds: []
+    }
+    addCustomer(newCustomer)
+    setSelectedClientId(newCustomer.id)
+  }
 
   useEffect(() => {
     if (existingCustomer) {
@@ -142,7 +163,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   }
 
   const canProceedStep1 = selectedCustomerId || (newCustomerName && phoneRegex.test(newCustomerPhone))
-  const canProceedStep2 = projectName && projectFullAddress && projectProvince && projectStart && projectEnd && selectedSupervisors.length > 0
+  const canProceedStep2 = selectedClientId && projectName && projectFullAddress && projectProvince && projectStart && projectEnd && selectedSupervisors.length > 0
   const canProceedStep3 = contractValueNumber > 0 && paidAmountNumber >= 0
 
   const handleCreate = () => {
@@ -153,7 +174,10 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
     }
 
     const customerId = selectedCustomerId || `cust-${Date.now()}`
+    const clientId = selectedClientId || customerId
     const projectId = `proj-${Date.now()}`
+
+    const selectedClient = customers.find((c) => c.id === selectedClientId)
 
     if (!selectedCustomerId) {
       const customer: Customer = {
@@ -178,7 +202,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
       id: projectId,
       name: projectName,
       location: projectFullAddress,
-      client: selectedCustomer ? selectedCustomer.fullName : newCustomerName,
+      client: selectedClient ? selectedClient.fullName : (selectedCustomer ? selectedCustomer.fullName : newCustomerName),
       customerId,
       category,
       categoryNote: category === 'other' ? categoryNote : undefined,
@@ -339,6 +363,26 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
         {step === 2 && (
           <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">Chủ đầu tư *</label>
+                <select
+                  className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3"
+                  value={selectedClientId}
+                  onChange={(event) => {
+                    if (event.target.value === 'new') {
+                      setShowNewCustomerModal(true)
+                    } else {
+                      setSelectedClientId(event.target.value)
+                    }
+                  }}
+                >
+                  <option value="">Chọn chủ đầu tư</option>
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>{customer.fullName}</option>
+                  ))}
+                  <option value="new">+ Tạo khách hàng mới</option>
+                </select>
+              </div>
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-slate-700">Tên dự án *</label>
                 <input
@@ -660,6 +704,11 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
           </Button>
         )}
       </div>
+      <NewCustomerModal
+        isOpen={showNewCustomerModal}
+        onClose={() => setShowNewCustomerModal(false)}
+        onSubmit={handleNewCustomerSubmit}
+      />
     </div>
   )
 }

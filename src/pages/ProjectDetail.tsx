@@ -9,6 +9,7 @@ import Badge from '../components/ui/Badge'
 import ProgressBar from '../components/ui/ProgressBar'
 import TaskModal from '../components/modals/TaskModal'
 import ConfirmModal from '../components/modals/ConfirmModal'
+import CreateTaskModal from '../components/modals/CreateTaskModal'
 import KanbanBoard from '../components/kanban/KanbanBoard'
 import { calculateProjectProgress, formatDate, daysUntil } from '../utils/progress'
 import { sendWebhook } from '../utils/webhook'
@@ -38,14 +39,10 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   const updateProject = useProjectStore((state) => state.updateProject)
   const addTask = useProjectStore((state) => state.addTask)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const [showTaskForm, setShowTaskForm] = useState(false)
+  const [showCreateTaskModal, setShowCreateTaskModal] = useState(false)
   const [showAttachments, setShowAttachments] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [viewMode, setViewMode] = useState<'kanban' | 'timeline'>('kanban')
-  const [newTaskTitle, setNewTaskTitle] = useState('')
-  const [newTaskStartDate, setNewTaskStartDate] = useState('')
-  const [newTaskEstimatedDays, setNewTaskEstimatedDays] = useState('7')
-  const [newTaskDeadline, setNewTaskDeadline] = useState('')
   const [webhookUrl, setWebhookUrl] = useState('')
 
   const customers = useCustomerStore((state) => state.customers)
@@ -57,12 +54,6 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     date.setDate(date.getDate() + estimatedDays)
     return date.toISOString().slice(0, 10)
   }
-
-  useEffect(() => {
-    if (newTaskStartDate && newTaskEstimatedDays) {
-      setNewTaskDeadline(calculateDeadline(newTaskStartDate, Number(newTaskEstimatedDays)))
-    }
-  }, [newTaskStartDate, newTaskEstimatedDays])
 
   if (!project || !user) {
     return (
@@ -137,21 +128,16 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   const activeTaskCount = useMemo(() => project.tasks.filter((task) => task.status !== 'cancelled').length, [project.tasks])
   const nextWeight = activeTaskCount > 0 ? Math.round(100 / (activeTaskCount + 1)) : 0
 
-  const createTask = () => {
-    if (!newTaskTitle || !newTaskStartDate || !newTaskEstimatedDays) {
-      showToast('Vui lòng nhập tên, ngày bắt đầu và số ngày thi công', 'error')
-      return
-    }
-
+  const createTask = (data: { title: string; description?: string; startDate: string; estimatedDays: number; deadline?: string }) => {
     const task: Task = {
       id: `task-${Date.now()}`,
-      title: newTaskTitle,
-      description: 'Công việc mới cần cập nhật mô tả chi tiết.',
+      title: data.title,
+      description: data.description || 'Công việc mới cần cập nhật mô tả chi tiết.',
       status: 'todo',
       images: [],
-      deadline: newTaskDeadline || calculateDeadline(newTaskStartDate, Number(newTaskEstimatedDays)),
-      estimatedDays: Number(newTaskEstimatedDays),
-      startDate: newTaskStartDate,
+      deadline: data.deadline || calculateDeadline(data.startDate, data.estimatedDays),
+      estimatedDays: data.estimatedDays,
+      startDate: data.startDate,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       updatedBy: user.name,
@@ -159,10 +145,6 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     }
     addTask(project.id, task)
     showToast('Đã tạo hạng mục mới', 'success')
-    setShowTaskForm(false)
-    setNewTaskTitle('')
-    setNewTaskEstimatedDays('7')
-    setNewTaskDeadline(calculateDeadline(newTaskStartDate, Number(newTaskEstimatedDays)))
     if (project.webhookUrl) {
       sendWebhook({ ...project, tasks: [...project.tasks, task] }, task, 'task_created').catch(() => {
         showToast('Webhook gửi thất bại', 'error')
@@ -201,7 +183,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
         description={`Khách hàng: ${customer?.fullName || project.client} · ${project.address?.fullAddress || project.location}`}
         actions={
           <div className="flex flex-wrap gap-3">
-            <Button type="button" onClick={() => setShowTaskForm((value) => !value)}>
+            <Button type="button" onClick={() => setShowCreateTaskModal(true)}>
               Thêm hạng mục
             </Button>
             <Button type="button" variant="secondary" onClick={() => setShowAttachments((value) => !value)}>
@@ -311,58 +293,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
           </div>
         </div>
 
-      {showTaskForm && user.role === 'manager' ? (
-        <div className="rounded-3xl bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-slate-900">Tạo hạng mục mới</h2>
-          <div className="mt-5 grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">Tên hạng mục</label>
-              <input
-                className="w-full rounded-3xl border border-slate-200 px-4 py-3"
-                value={newTaskTitle}
-                onChange={(event) => setNewTaskTitle(event.target.value)}
-                placeholder="Tên hạng mục"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">Ngày bắt đầu dự kiến</label>
-              <input
-                type="date"
-                className="w-full rounded-3xl border border-slate-200 px-4 py-3"
-                value={newTaskStartDate}
-                onChange={(event) => setNewTaskStartDate(event.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">Số ngày thi công</label>
-              <input
-                type="number"
-                min={1}
-                className="w-full rounded-3xl border border-slate-200 px-4 py-3"
-                value={newTaskEstimatedDays}
-                onChange={(event) => setNewTaskEstimatedDays(event.target.value)}
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-3">
-              <label className="block text-sm font-semibold text-slate-700">Deadline</label>
-              <input
-                type="date"
-                className="w-full rounded-3xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900"
-                value={newTaskDeadline}
-                onChange={(event) => setNewTaskDeadline(event.target.value)}
-              />
-              <p className="text-xs text-slate-500">Deadline tự động tính từ ngày bắt đầu + số ngày, có thể ghi đè.</p>
-            </div>
-          </div>
-          <div className="mt-4 rounded-3xl bg-slate-50 p-4 text-sm text-slate-700">
-            Thêm hạng mục này, mỗi hạng mục đóng góp 1/{activeTaskCount + 1} = {nextWeight}%
-          </div>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Button type="button" onClick={createTask}>Thêm</Button>
-            <Button type="button" variant="secondary" onClick={() => setShowTaskForm(false)}>Hủy</Button>
-          </div>
-        </div>
-      ) : null}
+
 
       <div className="rounded-3xl bg-white p-6 shadow-sm">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -450,6 +381,12 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
           }}
         />
       ) : null}
+      <CreateTaskModal
+        isOpen={showCreateTaskModal}
+        onClose={() => setShowCreateTaskModal(false)}
+        onSubmit={createTask}
+        activeTaskCount={activeTaskCount}
+      />
     </div>
   )
 }
