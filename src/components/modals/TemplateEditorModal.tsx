@@ -8,7 +8,7 @@ interface TemplateEditorModalProps {
   projectTypeName: string
   templates: TaskTemplate[]
   onAdd: (title: string) => void
-  onUpdate: (id: string, title: string) => void
+  onUpdate: (id: string, title: string, estimatedDays: number) => void
   onDelete: (id: string) => void
 }
 
@@ -76,13 +76,24 @@ export default function TemplateEditorModal({
               <div className="space-y-3">
                 {sortedTemplates.map((template) => (
                   <div key={template.id} className="flex flex-col gap-3 rounded-3xl border border-slate-200 p-4 sm:flex-row sm:items-center">
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 space-y-2">
                       <input
                         className="w-full rounded-3xl border border-slate-200 px-4 py-3"
                         value={template.title}
-                        onChange={(event) => onUpdate(template.id, event.target.value)}
+                        onChange={(event) => onUpdate(template.id, event.target.value, template.estimatedDays ?? 0)}
                       />
-                      <p className="mt-2 text-xs text-slate-500">ID mẫu: {template.id}</p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          max={999}
+                          value={template.estimatedDays ?? 0}
+                          onChange={(event) => onUpdate(template.id, template.title, Number(event.target.value))}
+                          className="w-24 rounded-3xl border border-slate-200 px-3 py-2 text-center"
+                        />
+                        <span className="text-sm text-slate-500">ngày</span>
+                      </div>
+                      <p className="text-xs text-slate-500">ID mẫu: {template.id}</p>
                     </div>
                     <Button type="button" variant="danger" onClick={() => onDelete(template.id)}>
                       Xóa

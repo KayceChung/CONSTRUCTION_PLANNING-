@@ -58,6 +58,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Khảo sát hiện trạng',
     sortOrder: 1,
     isDefault: true,
+    estimatedDays: 5,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -67,6 +68,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Thiết kế kiến trúc',
     sortOrder: 2,
     isDefault: true,
+    estimatedDays: 14,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -76,6 +78,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Xin giấy phép xây dựng',
     sortOrder: 3,
     isDefault: true,
+    estimatedDays: 30,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -85,6 +88,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Đào móng',
     sortOrder: 4,
     isDefault: true,
+    estimatedDays: 7,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -94,6 +98,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Xây dựng móng',
     sortOrder: 5,
     isDefault: true,
+    estimatedDays: 14,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -103,6 +108,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Xây dựng khung nhà',
     sortOrder: 6,
     isDefault: true,
+    estimatedDays: 30,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -112,6 +118,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Hoàn thiện nội ngoại thất',
     sortOrder: 7,
     isDefault: true,
+    estimatedDays: 45,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -121,6 +128,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Bàn giao công trình',
     sortOrder: 8,
     isDefault: true,
+    estimatedDays: 3,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -132,6 +140,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Khảo sát địa hình',
     sortOrder: 1,
     isDefault: true,
+    estimatedDays: 5,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -141,6 +150,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Thiết kế biệt thự',
     sortOrder: 2,
     isDefault: true,
+    estimatedDays: 21,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -150,6 +160,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Xin giấy phép xây dựng',
     sortOrder: 3,
     isDefault: true,
+    estimatedDays: 30,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -159,6 +170,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Đào móng biệt thự',
     sortOrder: 4,
     isDefault: true,
+    estimatedDays: 14,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -168,6 +180,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Xây dựng móng biệt thự',
     sortOrder: 5,
     isDefault: true,
+    estimatedDays: 21,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -177,6 +190,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Xây dựng khung biệt thự',
     sortOrder: 6,
     isDefault: true,
+    estimatedDays: 30,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -186,6 +200,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Hoàn thiện biệt thự',
     sortOrder: 7,
     isDefault: true,
+    estimatedDays: 45,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -195,6 +210,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Bàn giao biệt thự',
     sortOrder: 8,
     isDefault: true,
+    estimatedDays: 3,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -206,6 +222,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Khảo sát hư hỏng',
     sortOrder: 1,
     isDefault: true,
+    estimatedDays: 2,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -215,6 +232,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Lập phương án sửa chữa',
     sortOrder: 2,
     isDefault: true,
+    estimatedDays: 5,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -224,6 +242,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Chuẩn bị vật liệu',
     sortOrder: 3,
     isDefault: true,
+    estimatedDays: 7,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -233,6 +252,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Thực hiện sửa chữa',
     sortOrder: 4,
     isDefault: true,
+    estimatedDays: 21,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -242,6 +262,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Hoàn thiện',
     sortOrder: 5,
     isDefault: true,
+    estimatedDays: 10,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -253,6 +274,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Thiết kế nội thất',
     sortOrder: 1,
     isDefault: true,
+    estimatedDays: 7,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -262,6 +284,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Lên danh sách vật liệu',
     sortOrder: 2,
     isDefault: true,
+    estimatedDays: 7,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -271,6 +294,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Đặt mua vật liệu',
     sortOrder: 3,
     isDefault: true,
+    estimatedDays: 10,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -280,6 +304,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Lắp đặt nội thất',
     sortOrder: 4,
     isDefault: true,
+    estimatedDays: 14,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
@@ -289,6 +314,7 @@ const initialTaskTemplates: TaskTemplate[] = [
     title: 'Hoàn thiện nội thất',
     sortOrder: 5,
     isDefault: true,
+    estimatedDays: 14,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   }
@@ -332,6 +358,7 @@ export const useProjectTypeStore = create<ProjectTypeStore>()(
       addTaskTemplate: (taskTemplate) => {
         const newTaskTemplate: TaskTemplate = {
           ...taskTemplate,
+          estimatedDays: taskTemplate.estimatedDays ?? 0,
           id: Date.now().toString(),
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()

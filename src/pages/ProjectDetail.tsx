@@ -15,6 +15,7 @@ import KanbanBoard from '../components/kanban/KanbanBoard'
 import { calculateProjectProgress, formatDate, daysUntil } from '../utils/progress'
 import { sendWebhook } from '../utils/webhook'
 import { exportProjectPdf } from '../utils/pdfReport'
+import { sendZaloNotification, checkDeadlineWarnings, createZaloGroupForProject } from '../lib/webhook-service'
 import { Project, Task, TaskStatus } from '../types'
 
 interface ProjectDetailProps {
@@ -54,11 +55,19 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
 
   const calculateDeadline = (startDate: string, estimatedDays: number) => {
     const date = new Date(startDate)
-    date.setDate(date.getDate() + estimatedDays)
+    date.setDate(date.getDate() + Math.max(1, estimatedDays) - 1)
     return date.toISOString().slice(0, 10)
   }
 
+  // Check deadline warnings when component mounts
+  useEffect(() => {
+    if (project && projects.length > 0) {
+      checkDeadlineWarnings(projects)
+    }
+  }, [])
+
   if (!project || !user) {
+
     return (
       <div className="rounded-3xl bg-white p-8 text-center shadow-sm">
         <p className="text-slate-700">Dự án không tồn tại.</p>
@@ -172,6 +181,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
       showToast('Giám sát chỉ có thể chuyển sang trạng thái hợp lệ', 'error')
       return
     }
+    const previousStatus = task.status
     updateTask(project.id, taskId, {
       status: newStatus,
       note: `Chuyển trạng thái qua kéo thả`,
@@ -179,6 +189,16 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
       updatedAt: new Date().toISOString()
     })
     showToast('Cập nhật trạng thái thành công', 'success')
+
+    // Send Zalo notification for status change
+    sendZaloNotification(project, 'task.status_changed', {
+      taskTitle: task.title,
+      oldStatus: previousStatus,
+      newStatus: newStatus,
+      updatedBy: user.name,
+      timestamp: new Date().toISOString(),
+    })
+
     sendWebhook({ ...project, tasks: project.tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)) }, { ...task, status: newStatus } as Task, 'status_changed', task.status).catch(() => {
       showToast('Webhook gửi thất bại', 'error')
     })
@@ -203,6 +223,46 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
           </div>
         }
       />
+
+      {/* Zalo Status Badge */}
+      {project.zaloStatus === 'linked' && (
+        <div className="rounded-3xl border border-green-200 bg-green-50 p-4">
+          <p className="text-sm font-medium text-green-700">
+            ✓ Zalo đã kết nối: <span className="font-semibold">"{project.zaloGroupName}"</span>
+          </p>
+        </div>
+      )}
+      {project.zaloStatus === 'failed' && (
+        <div className="flex items-center justify-between rounded-3xl border border-red-200 bg-red-50 p-4">
+          <p className="text-sm font-medium text-red-700">🔴 Zalo chưa kết nối</p>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              // Retry creating Zalo group
+              const customer = customers.find((c) => c.id === project.customerId)
+              if (customer) {
+                showToast('Đang thử lại...', 'info')
+                createZaloGroupForProject(project, customer, user.name).then((result) => {
+                  if (result.success) {
+                    updateProject(project.id, {
+                      zaloGroupThreadId: result.zaloGroupThreadId,
+                      zaloGroupName: result.zaloGroupName,
+                      zaloLinkedAt: new Date().toISOString(),
+                      zaloStatus: 'linked' as const,
+                    })
+                    showToast(`✓ Đã tạo nhóm Zalo: "${result.zaloGroupName}"`, 'success')
+                  } else {
+                    showToast(`Không thể kết nối Zalo: ${result.error}`, 'error')
+                  }
+                })
+              }
+            }}
+          >
+            Thử lại
+          </Button>
+        </div>
+      )}
 
       {/* Tab Navigation */}
       <div className="rounded-3xl bg-white shadow-sm border border-slate-200">

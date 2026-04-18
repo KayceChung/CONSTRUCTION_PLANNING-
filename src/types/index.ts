@@ -79,6 +79,7 @@ export interface TaskTemplate {
   title: string
   sortOrder: number
   isDefault: boolean
+  estimatedDays: number
   createdAt: string
   updatedAt: string
 }
@@ -105,6 +106,12 @@ export interface Project {
   assignedStaff: string[]
   projectTypeId?: string | null
   notes?: string // Ghi chú dự án
+
+  // Zalo integration fields
+  zaloGroupThreadId?: string // Thread ID của group Zalo
+  zaloGroupName?: string // Tên group Zalo
+  zaloLinkedAt?: string // ISO datetime khi kết nối Zalo
+  zaloStatus?: 'linked' | 'pending' | 'failed' | null // Trạng thái kết nối
 }
 
 export interface Staff {

@@ -7,6 +7,7 @@ import { useAuthStore } from '../../stores/useAuthStore'
 import { Project, Task, ProjectAddress } from '../../types'
 import Button from '../ui/Button'
 import { X, ChevronRight, ChevronLeft } from 'lucide-react'
+import { createZaloGroupForProject } from '../../lib/webhook-service'
 
 interface ProjectCreateModalProps {
   isOpen: boolean
@@ -51,6 +52,7 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([])
   const [customTasks, setCustomTasks] = useState<string[]>([''])
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [zaloStatus, setZaloStatus] = useState<'idle' | 'linking' | 'linked' | 'failed'>('idle')
 
   const selectedProjectType = useMemo(
     () => projectTypes.find((pt) => pt.id === formData.projectTypeId),
@@ -69,6 +71,49 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
         : [],
     [formData.projectTypeId, getDefaultTaskTemplates]
   )
+
+  const selectedTemplateItems = useMemo(
+    () =>
+      availableTemplates
+        .filter((template) => selectedTemplates.includes(template.id))
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    [availableTemplates, selectedTemplates]
+  )
+
+  const formatShortDate = (dateString: string) => {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    const sameYear = date.getFullYear() === new Date().getFullYear()
+    return date.toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: sameYear ? undefined : 'numeric'
+    } as Intl.DateTimeFormatOptions)
+  }
+
+  const templateSchedule = useMemo(() => {
+    if (!formData.startDate) return []
+    const startDate = new Date(formData.startDate)
+    let current = new Date(startDate)
+    return selectedTemplateItems.map((template) => {
+      const estimatedDays = Math.max(1, template.estimatedDays || 1)
+      const taskStart = new Date(current)
+      const taskEnd = new Date(current)
+      taskEnd.setDate(taskEnd.getDate() + estimatedDays - 1)
+      current = new Date(taskEnd)
+      current.setDate(current.getDate() + 1)
+      return {
+        ...template,
+        estimatedDays,
+        calculatedStartDate: taskStart.toISOString().slice(0, 10),
+        calculatedEndDate: taskEnd.toISOString().slice(0, 10)
+      }
+    })
+  }, [formData.startDate, selectedTemplateItems])
+
+  const totalTemplateDays = templateSchedule.reduce((sum, template) => sum + template.estimatedDays, 0)
+  const projectedCompletionDate = templateSchedule.length ? templateSchedule[templateSchedule.length - 1].calculatedEndDate : ''
+  const projectOverdue = formData.endDate && projectedCompletionDate && new Date(projectedCompletionDate) > new Date(formData.endDate)
 
   // Initialize selected templates with defaults when project type changes
   useEffect(() => {
@@ -100,7 +145,7 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
     }
   }
 
-  const handleCreateProject = () => {
+  const handleCreateProject = async () => {
     if (!user) return
 
     try {
@@ -130,46 +175,67 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
 
       // Create tasks from selected templates
       const tasksToCreate: Task[] = []
+      let currentDate = formData.startDate ? new Date(formData.startDate) : null
 
-      // Add tasks from templates
-      availableTemplates.forEach((template) => {
-        if (selectedTemplates.includes(template.id)) {
-          tasksToCreate.push({
-            id: `task_${Date.now()}_${Math.random()}`,
-            title: template.title,
-            description: '',
-            status: 'todo',
-            images: [],
-            deadline: formData.endDate,
-            estimatedDays: null,
-            updatedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedBy: user.id,
-            order: tasksToCreate.length,
-            fromTemplateId: template.id,
-            note: ''
-          })
+      const selectedTemplatesToCreate = availableTemplates
+        .filter((template) => selectedTemplates.includes(template.id))
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+
+      selectedTemplatesToCreate.forEach((template) => {
+        const estimatedDays = Math.max(1, template.estimatedDays || 1)
+        const taskStart = currentDate ? new Date(currentDate) : new Date()
+        const taskEnd = new Date(taskStart)
+        taskEnd.setDate(taskEnd.getDate() + estimatedDays - 1)
+
+        tasksToCreate.push({
+          id: `task_${Date.now()}_${Math.random()}`,
+          title: template.title,
+          description: '',
+          status: 'todo',
+          images: [],
+          deadline: taskEnd.toISOString().slice(0, 10),
+          estimatedDays,
+          startDate: taskStart.toISOString().slice(0, 10),
+          updatedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedBy: user.id,
+          order: tasksToCreate.length + 1,
+          fromTemplateId: template.id,
+          note: ''
+        })
+
+        if (currentDate) {
+          currentDate = new Date(taskEnd)
+          currentDate.setDate(currentDate.getDate() + 1)
         }
       })
 
-      // Add custom tasks
+      // Add custom tasks at the end of the schedule with 1-day default
       customTasks.forEach((customTask) => {
         if (customTask.trim()) {
+          const taskStart = currentDate ? new Date(currentDate) : new Date(formData.startDate)
+          const taskEnd = new Date(taskStart)
+          taskEnd.setDate(taskEnd.getDate() + 1 - 1)
           tasksToCreate.push({
             id: `task_${Date.now()}_${Math.random()}`,
             title: customTask.trim(),
             description: '',
             status: 'todo',
             images: [],
-            deadline: formData.endDate,
-            estimatedDays: null,
+            deadline: taskEnd.toISOString().slice(0, 10),
+            estimatedDays: 1,
+            startDate: taskStart.toISOString().slice(0, 10),
             updatedAt: new Date().toISOString(),
             createdAt: new Date().toISOString(),
             updatedBy: user.id,
-            order: tasksToCreate.length,
+            order: tasksToCreate.length + 1,
             fromTemplateId: null,
             note: ''
           })
+          if (currentDate) {
+            currentDate = new Date(taskEnd)
+            currentDate.setDate(currentDate.getDate() + 1)
+          }
         }
       })
 
@@ -179,6 +245,40 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
       addProject(newProject)
 
       showToast('Dự án đã được tạo thành công', 'success')
+
+      // Try to create Zalo group if customer has phone
+      const customer = customers.find((c) => c.id === formData.customerId)
+      if (customer && customer.phone) {
+        setZaloStatus('linking')
+
+        const result = await createZaloGroupForProject(
+          newProject,
+          customer,
+          user.name
+        )
+
+        if (result.success) {
+          // Update project with Zalo info
+          const updateData = {
+            zaloGroupThreadId: result.zaloGroupThreadId,
+            zaloGroupName: result.zaloGroupName,
+            zaloLinkedAt: new Date().toISOString(),
+            zaloStatus: 'linked' as const,
+          }
+          useProjectStore.getState().updateProject(newProject.id, updateData)
+          setZaloStatus('linked')
+          showToast(`✓ Đã tạo nhóm Zalo: "${result.zaloGroupName}"`, 'success')
+        } else {
+          // Mark as failed but don't block project creation
+          useProjectStore.getState().updateProject(newProject.id, { zaloStatus: 'failed' as const })
+          setZaloStatus('failed')
+          showToast(
+            `⚠ Không thể tạo nhóm Zalo. ${result.error || 'Bạn có thể thử lại sau trong cài đặt dự án.'}`,
+            'error'
+          )
+        }
+      }
+
       onClose()
 
       // Redirect to project detail
@@ -372,24 +472,61 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
               <div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Chọn đầu việc mẫu</h3>
                 <div className="space-y-3">
-                  {availableTemplates.map((template) => (
-                    <label key={template.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 cursor-pointer hover:bg-slate-50">
-                      <input
-                        type="checkbox"
-                        checked={selectedTemplates.includes(template.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedTemplates([...selectedTemplates, template.id])
-                          } else {
-                            setSelectedTemplates(selectedTemplates.filter((id) => id !== template.id))
-                          }
-                        }}
-                        className="w-4 h-4 rounded"
-                      />
-                      <span className="flex-1 text-slate-900">{template.title}</span>
-                    </label>
-                  ))}
+                  {availableTemplates.map((template) => {
+                    const scheduleItem = templateSchedule.find((item) => item.id === template.id)
+                    return (
+                      <label
+                        key={template.id}
+                        className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-4 hover:bg-slate-50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedTemplates.includes(template.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedTemplates([...selectedTemplates, template.id])
+                              } else {
+                                setSelectedTemplates(selectedTemplates.filter((id) => id !== template.id))
+                              }
+                            }}
+                            className="w-4 h-4 rounded"
+                          />
+                          <span className="flex-1 text-slate-900 font-medium">{template.title}</span>
+                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${template.estimatedDays > 0 ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>
+                            {template.estimatedDays > 0 ? `${template.estimatedDays} ngày` : 'Chưa có'}
+                          </span>
+                        </div>
+                        {scheduleItem ? (
+                          <div className="flex flex-col gap-1 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+                            <span>bắt đầu {formatShortDate(scheduleItem.calculatedStartDate)}</span>
+                            <span>kết thúc {formatShortDate(scheduleItem.calculatedEndDate)}</span>
+                            <span>({scheduleItem.estimatedDays} ngày)</span>
+                          </div>
+                        ) : null}
+                      </label>
+                    )
+                  })}
                 </div>
+
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold">Tổng thời gian dự kiến</span>
+                    <span>{totalTemplateDays} ngày</span>
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">~{(totalTemplateDays / 30).toFixed(1)} tháng</div>
+                </div>
+
+                {projectedCompletionDate ? (
+                  <div className="rounded-3xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                    <p>
+                      Ngày hoàn thành dự kiến: <span className="font-semibold">{formatShortDate(projectedCompletionDate)}</span>
+                    </p>
+                    {projectOverdue ? (
+                      <p className="mt-2 text-sm text-amber-700">⚠ Tổng thời gian các đầu việc ({totalTemplateDays} ngày) vượt quá deadline đã đặt. Cân nhắc điều chỉnh.</p>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
               <div>
@@ -421,6 +558,30 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
                   ))}
                 </div>
               </div>
+
+              {/* Zalo Status Indicator */}
+              {zaloStatus !== 'idle' && (
+                <div className={`rounded-3xl border p-4 ${
+                  zaloStatus === 'linking'
+                    ? 'border-blue-200 bg-blue-50'
+                    : zaloStatus === 'linked'
+                    ? 'border-green-200 bg-green-50'
+                    : 'border-amber-200 bg-amber-50'
+                }`}>
+                  {zaloStatus === 'linking' && (
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-300 border-t-blue-600" />
+                      <span className="text-sm font-medium text-blue-700">Đang tạo nhóm Zalo...</span>
+                    </div>
+                  )}
+                  {zaloStatus === 'linked' && (
+                    <p className="text-sm font-medium text-green-700">✓ Đã tạo nhóm Zalo thành công</p>
+                  )}
+                  {zaloStatus === 'failed' && (
+                    <p className="text-sm font-medium text-amber-700">⚠ Không thể tạo nhóm Zalo. Bạn có thể thử lại sau.</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -457,9 +618,10 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
             <button
               type="button"
               onClick={handleCreateProject}
-              className="flex-1 rounded-2xl bg-brand-900 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700"
+              disabled={zaloStatus === 'linking'}
+              className="flex-1 rounded-2xl bg-brand-900 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Tạo dự án
+              {zaloStatus === 'linking' ? 'Đang xử lý...' : 'Tạo dự án'}
             </button>
           )}
         </div>

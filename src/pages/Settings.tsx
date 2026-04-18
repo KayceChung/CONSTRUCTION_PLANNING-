@@ -18,13 +18,14 @@ interface SortableTaskTemplateProps {
   projectTypeId: string
   onToggleDefault: (id: string) => void
   onDelete: (id: string) => void
-  onUpdate: (id: string, title: string) => void
+  onUpdate: (id: string, title: string, estimatedDays: number) => void
 }
 
 function SortableTaskTemplate({ template, projectTypeId, onToggleDefault, onDelete, onUpdate }: SortableTaskTemplateProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: template.id })
   const [isEditing, setIsEditing] = useState(false)
   const [editedTitle, setEditedTitle] = useState(template.title)
+  const [editedEstimatedDays, setEditedEstimatedDays] = useState(String(template.estimatedDays ?? 0))
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -33,9 +34,27 @@ function SortableTaskTemplate({ template, projectTypeId, onToggleDefault, onDele
   }
 
   const handleSave = () => {
+    const days = Math.max(0, Math.min(999, Number(editedEstimatedDays)))
     if (editedTitle.trim()) {
-      onUpdate(template.id, editedTitle.trim())
+      onUpdate(template.id, editedTitle.trim(), Number(days))
       setIsEditing(false)
+    }
+  }
+
+  const cancelEdit = () => {
+    setIsEditing(false)
+    setEditedTitle(template.title)
+    setEditedEstimatedDays(String(template.estimatedDays ?? 0))
+  }
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      handleSave()
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      cancelEdit()
     }
   }
 
@@ -50,60 +69,75 @@ function SortableTaskTemplate({ template, projectTypeId, onToggleDefault, onDele
       </div>
 
       {isEditing ? (
-        <div className="flex-1 flex gap-2">
-          <input
-            type="text"
-            value={editedTitle}
-            onChange={(e) => setEditedTitle(e.target.value)}
-            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-brand-500"
-            autoFocus
-          />
-          <button
-            onClick={handleSave}
-            className="px-3 py-2 bg-brand-900 text-white rounded-lg text-sm font-medium hover:bg-brand-700"
-          >
-            Lưu
-          </button>
-          <button
-            onClick={() => {
-              setIsEditing(false)
-              setEditedTitle(template.title)
-            }}
-            className="px-3 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50"
-          >
-            Hủy
-          </button>
+        <div className="flex-1 flex flex-col gap-2" onKeyDown={handleKeyDown}>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={editedTitle}
+              onChange={(e) => setEditedTitle(e.target.value)}
+              className="flex-1 rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-brand-500"
+              autoFocus
+            />
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={999}
+                value={editedEstimatedDays}
+                onChange={(e) => setEditedEstimatedDays(e.target.value)}
+                className="w-20 rounded-lg border border-slate-200 px-3 py-2 text-center outline-none focus:border-brand-500"
+              />
+              <span className="text-sm text-slate-500">ngày</span>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              className="px-3 py-2 bg-brand-900 text-white rounded-lg text-sm font-medium hover:bg-brand-700"
+            >
+              Lưu
+            </button>
+            <button
+              onClick={cancelEdit}
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50"
+            >
+              Hủy
+            </button>
+          </div>
         </div>
       ) : (
-        <div className="flex-1 flex items-center gap-2">
-          <span className="text-slate-900">{template.title}</span>
-        </div>
-      )}
+        <>
+          <div className="flex-1 flex flex-col gap-1">
+            <span className="text-slate-900">{template.title}</span>
+            <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+              {template.estimatedDays > 0 ? `${template.estimatedDays} ngày` : 'Chưa có'}
+            </span>
+          </div>
 
-      {!isEditing && (
-        <div className="flex gap-2">
-          <button
-            onClick={() => onToggleDefault(template.id)}
-            className={`p-2 rounded-lg transition ${
-              template.isDefault ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400 hover:text-amber-600'
-            }`}
-            title={template.isDefault ? 'Bỏ đánh dấu mặc định' : 'Đánh dấu mặc định'}
-          >
-            <Star size={16} fill={template.isDefault ? 'currentColor' : 'none'} />
-          </button>
-          <button
-            onClick={() => setIsEditing(true)}
-            className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:text-slate-900 transition"
-          >
-            <Edit2 size={16} />
-          </button>
-          <button
-            onClick={() => onDelete(template.id)}
-            className="p-2 rounded-lg bg-rose-100 text-rose-600 hover:text-rose-700 transition"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onToggleDefault(template.id)}
+              className={`p-2 rounded-lg transition ${
+                template.isDefault ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400 hover:text-amber-600'
+              }`}
+              title={template.isDefault ? 'Bỏ đánh dấu mặc định' : 'Đánh dấu mặc định'}
+            >
+              <Star size={16} fill={template.isDefault ? 'currentColor' : 'none'} />
+            </button>
+            <button
+              onClick={() => setIsEditing(true)}
+              className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:text-slate-900 transition"
+            >
+              <Edit2 size={16} />
+            </button>
+            <button
+              onClick={() => onDelete(template.id)}
+              className="p-2 rounded-lg bg-rose-100 text-rose-600 hover:text-rose-700 transition"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </>
       )}
     </div>
   )
@@ -130,6 +164,8 @@ export default function Settings({ showToast }: SettingsProps) {
   const selectedTypeTaskTemplates = selectedProjectType
     ? taskTemplates.filter((tt) => tt.projectTypeId === selectedProjectType.id).sort((a, b) => a.sortOrder - b.sortOrder)
     : []
+
+  const totalEstimatedDays = selectedTypeTaskTemplates.reduce((sum, template) => sum + (template.estimatedDays || 0), 0)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -175,7 +211,8 @@ export default function Settings({ showToast }: SettingsProps) {
       projectTypeId: selectedProjectType.id,
       title: newTaskTitle.trim(),
       sortOrder: selectedTypeTaskTemplates.length + 1,
-      isDefault: false
+      isDefault: false,
+      estimatedDays: 0
     })
 
     setNewTaskTitle('')
@@ -199,8 +236,8 @@ export default function Settings({ showToast }: SettingsProps) {
     showToast('Đầu việc đã được xóa', 'success')
   }
 
-  const handleUpdateTaskTemplate = (templateId: string, newTitle: string) => {
-    updateTaskTemplate(templateId, { title: newTitle })
+  const handleUpdateTaskTemplate = (templateId: string, newTitle: string, estimatedDays: number) => {
+    updateTaskTemplate(templateId, { title: newTitle, estimatedDays })
   }
 
   const handleDragEnd = (event: any) => {
@@ -329,25 +366,34 @@ export default function Settings({ showToast }: SettingsProps) {
                 </SortableContext>
               </DndContext>
 
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleAddTaskTemplate()
-                    }
-                  }}
-                  placeholder="Tên đầu việc mới"
-                  className="flex-1 rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-500"
-                />
-                <button
-                  onClick={handleAddTaskTemplate}
-                  className="rounded-2xl bg-brand-900 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700"
-                >
-                  <Plus size={16} />
-                </button>
+              <div className="flex flex-col gap-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddTaskTemplate()
+                      }
+                    }}
+                    placeholder="Tên đầu việc mới"
+                    className="flex-1 rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-500"
+                  />
+                  <button
+                    onClick={handleAddTaskTemplate}
+                    className="rounded-2xl bg-brand-900 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-slate-900">Tổng thời gian dự kiến</span>
+                    <span>{totalEstimatedDays} ngày</span>
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">~{(totalEstimatedDays / 30).toFixed(1)} tháng</div>
+                </div>
               </div>
             </div>
           ) : (
