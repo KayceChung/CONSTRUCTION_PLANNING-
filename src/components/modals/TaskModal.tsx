@@ -204,18 +204,29 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
           <div className="space-y-4">
             <div className="rounded-3xl bg-slate-50 p-4">
               <label className="block text-sm font-semibold text-slate-700">Chuyển trạng thái</label>
-              <select
-                className="mt-3 w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                {...register('status')}
-                defaultValue={task.status}
-              >
-                <option value="todo">Chưa bắt đầu</option>
-                <option value="in_progress">Đang thi công</option>
-                <option value="done">Hoàn thành</option>
-                <option value="adjustment">Điều chỉnh</option>
-                <option value="pending">Tạm dừng</option>
-                <option value="cancelled">Hủy bỏ</option>
-              </select>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {[
+                  { value: 'todo', label: 'Chưa bắt đầu', color: 'bg-slate-100 text-slate-700 hover:bg-slate-200' },
+                  { value: 'in_progress', label: 'Đang thi công', color: 'bg-blue-100 text-blue-700 hover:bg-blue-200' },
+                  { value: 'done', label: 'Hoàn thành', color: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' },
+                  { value: 'adjustment', label: 'Điều chỉnh', color: 'bg-amber-100 text-amber-700 hover:bg-amber-200' },
+                  { value: 'pending', label: 'Tạm dừng', color: 'bg-orange-100 text-orange-700 hover:bg-orange-200' },
+                  { value: 'cancelled', label: 'Hủy bỏ', color: 'bg-rose-100 text-rose-700 hover:bg-rose-200' }
+                ].map((statusOption) => (
+                  <button
+                    key={statusOption.value}
+                    type="button"
+                    className={`rounded-xl px-3 py-2 text-xs font-medium transition ${statusOption.color} ${status === statusOption.value ? 'ring-2 ring-brand-500 ring-offset-1' : ''}`}
+                    onClick={() => {
+                      // Update the form value
+                      const event = { target: { name: 'status', value: statusOption.value } }
+                      register('status').onChange(event)
+                    }}
+                  >
+                    {statusOption.label}
+                  </button>
+                ))}
+              </div>
               <p className="mt-2 text-xs text-slate-500">Ghi chú bắt buộc khi chuyển về điều chỉnh, tạm dừng hoặc hủy bỏ.</p>
             </div>
 

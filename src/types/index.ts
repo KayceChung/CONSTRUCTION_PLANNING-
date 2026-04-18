@@ -18,6 +18,7 @@ export interface Task {
   updatedBy: string
   note?: string
   order: number
+  fromTemplateId?: string | null // Thêm field này
 }
 
 export type ProjectCategory = 'new_construction' | 'renovation' | 'other'
@@ -61,6 +62,25 @@ export interface ContactLog {
   createdAt: string
 }
 
+export interface ProjectType {
+  id: string
+  name: string
+  color: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TaskTemplate {
+  id: string
+  projectTypeId: string
+  title: string
+  sortOrder: number
+  isDefault: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Project {
   id: string
   name: string
@@ -81,6 +101,7 @@ export interface Project {
   createdAt: string
   webhookUrl: string
   assignedStaff: string[]
+  projectTypeId?: string | null // Thêm field này
 }
 
 export interface Staff {

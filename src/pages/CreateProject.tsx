@@ -3,9 +3,10 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useCustomerStore } from '../stores/useCustomerStore'
 import { useProjectStore } from '../stores/useProjectStore'
+import { useProjectTypeStore } from '../stores/useProjectTypeStore'
 import { useStaffStore } from '../stores/useStaffStore'
 import { provinces } from '../constants/provinces'
-import { Attachment, Customer, Project } from '../types'
+import { Attachment, Customer, Project, Task, TaskStatus } from '../types'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import NewCustomerModal from '../components/modals/NewCustomerModal'
@@ -29,6 +30,39 @@ function formatContractValueLabel(value: number) {
 
 const stepTitles = ['Khách hàng', 'Dự án', 'Hạng mục & Tài chính', 'Xác nhận']
 
+interface DraftData {
+  step: number
+  selectedCustomerId: string
+  selectedProjectTypeId: string
+  newCustomerName: string
+  newCustomerPhone: string
+  newCustomerPhone2: string
+  newCustomerEmail: string
+  newCustomerAddress: string
+  newCustomerNote: string
+  projectName: string
+  projectFullAddress: string
+  projectWard: string
+  projectDistrict: string
+  projectProvince: string
+  projectMapsUrl: string
+  distanceKm: string
+  projectStart: string
+  projectEnd: string
+  selectedSupervisors: string[]
+  webhookUrl: string
+  selectedClientId: string
+  category: 'new_construction' | 'renovation' | 'other'
+  categoryNote: string
+  contractValue: string
+  paidAmount: string
+  paymentNote: string
+  attachments: Attachment[]
+  pendingNewCustomer: { fullName: string; phone: string; phone2?: string; email?: string; address?: string; note?: string } | null
+}
+
+const DRAFT_KEY = 'project-creation-draft'
+
 export default function CreateProject({ showToast }: { showToast: (message: string, type?: 'success' | 'error' | 'info') => void }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -39,6 +73,8 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   const updateCustomer = useCustomerStore((state) => state.updateCustomer)
   const addProject = useProjectStore((state) => state.addProject)
   const staff = useStaffStore((state) => state.staff)
+  const projectTypes = useProjectTypeStore((state) => state.projectTypes)
+  const getDefaultTaskTemplates = useProjectTypeStore((state) => state.getDefaultTaskTemplates)
 
   const existingCustomer = useMemo(
     () => customers.find((customer) => customer.id === state?.customerId),
@@ -50,9 +86,90 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
     [staff]
   )
 
+  const saveDraft = () => {
+    const draft: DraftData = {
+      step,
+      selectedCustomerId,
+      selectedProjectTypeId,
+      newCustomerName,
+      newCustomerPhone,
+      newCustomerPhone2,
+      newCustomerEmail,
+      newCustomerAddress,
+      newCustomerNote,
+      projectName,
+      projectFullAddress,
+      projectWard,
+      projectDistrict,
+      projectProvince,
+      projectMapsUrl,
+      distanceKm,
+      projectStart,
+      projectEnd,
+      selectedSupervisors,
+      webhookUrl,
+      selectedClientId,
+      category,
+      categoryNote,
+      contractValue,
+      paidAmount,
+      paymentNote,
+      attachments,
+      pendingNewCustomer
+    }
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+    showToast('Đã lưu bản nháp', 'info')
+  }
+
+  const loadDraft = () => {
+    const draftStr = localStorage.getItem(DRAFT_KEY)
+    if (draftStr) {
+      try {
+        const draft: DraftData = JSON.parse(draftStr)
+        setStep(draft.step)
+        setSelectedCustomerId(draft.selectedCustomerId)
+        setSelectedProjectTypeId(draft.selectedProjectTypeId)
+        setNewCustomerName(draft.newCustomerName)
+        setNewCustomerPhone(draft.newCustomerPhone)
+        setNewCustomerPhone2(draft.newCustomerPhone2)
+        setNewCustomerEmail(draft.newCustomerEmail)
+        setNewCustomerAddress(draft.newCustomerAddress)
+        setNewCustomerNote(draft.newCustomerNote)
+        setProjectName(draft.projectName)
+        setProjectFullAddress(draft.projectFullAddress)
+        setProjectWard(draft.projectWard)
+        setProjectDistrict(draft.projectDistrict)
+        setProjectProvince(draft.projectProvince)
+        setProjectMapsUrl(draft.projectMapsUrl)
+        setDistanceKm(draft.distanceKm)
+        setProjectStart(draft.projectStart)
+        setProjectEnd(draft.projectEnd)
+        setSelectedSupervisors(draft.selectedSupervisors)
+        setWebhookUrl(draft.webhookUrl)
+        setSelectedClientId(draft.selectedClientId)
+        setCategory(draft.category)
+        setCategoryNote(draft.categoryNote)
+        setContractValue(draft.contractValue)
+        setPaidAmount(draft.paidAmount)
+        setPaymentNote(draft.paymentNote)
+        setAttachments(draft.attachments)
+        setPendingNewCustomer(draft.pendingNewCustomer)
+        showToast('Đã tải bản nháp', 'info')
+      } catch (error) {
+        console.error('Failed to load draft:', error)
+      }
+    }
+  }
+
+  const clearDraft = () => {
+    localStorage.removeItem(DRAFT_KEY)
+    showToast('Đã xóa bản nháp', 'info')
+  }
+
   const [step, setStep] = useState(1)
   const [searchText, setSearchText] = useState('')
   const [selectedCustomerId, setSelectedCustomerId] = useState(existingCustomer?.id || '')
+  const [selectedProjectTypeId, setSelectedProjectTypeId] = useState('')
   const [newCustomerName, setNewCustomerName] = useState('')
   const [newCustomerPhone, setNewCustomerPhone] = useState('')
   const [newCustomerPhone2, setNewCustomerPhone2] = useState('')
@@ -73,6 +190,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   const [webhookUrl, setWebhookUrl] = useState('')
   const [selectedClientId, setSelectedClientId] = useState('')
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false)
+  const [pendingNewCustomer, setPendingNewCustomer] = useState<{ fullName: string; phone: string; phone2?: string; email?: string; address?: string; note?: string } | null>(null)
 
   const [category, setCategory] = useState<'new_construction' | 'renovation' | 'other'>('new_construction')
   const [categoryNote, setCategoryNote] = useState('')
@@ -104,12 +222,18 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
       projectIds: []
     }
     addCustomer(newCustomer)
+    setSelectedCustomerId(newCustomer.id)
     setSelectedClientId(newCustomer.id)
+    setPendingNewCustomer(customerData)
   }
 
   useEffect(() => {
     if (existingCustomer) {
       setSelectedCustomerId(existingCustomer.id)
+      setSelectedClientId(existingCustomer.id)
+    } else {
+      // Load draft if no existing customer
+      loadDraft()
     }
   }, [existingCustomer])
 
@@ -163,7 +287,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   }
 
   const canProceedStep1 = selectedCustomerId || (newCustomerName && phoneRegex.test(newCustomerPhone))
-  const canProceedStep2 = selectedClientId && projectName && projectFullAddress && projectProvince && projectStart && projectEnd && selectedSupervisors.length > 0
+  const canProceedStep2 = selectedClientId && projectName && selectedProjectTypeId && projectFullAddress && projectProvince && projectStart && projectEnd && selectedSupervisors.length > 0
   const canProceedStep3 = contractValueNumber > 0 && paidAmountNumber >= 0
 
   const handleCreate = () => {
@@ -173,13 +297,23 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
       return
     }
 
-    const customerId = selectedCustomerId || `cust-${Date.now()}`
-    const clientId = selectedClientId || customerId
+    const customerId = selectedClientId || selectedCustomerId || `cust-${Date.now()}`
     const projectId = `proj-${Date.now()}`
+    const selectedClient = customers.find((c) => c.id === customerId)
 
-    const selectedClient = customers.find((c) => c.id === selectedClientId)
-
-    if (!selectedCustomerId) {
+    if (!selectedClient && pendingNewCustomer) {
+      const customer: Customer = {
+        id: customerId,
+        ...pendingNewCustomer,
+        createdAt: new Date().toISOString(),
+        projectIds: [projectId]
+      }
+      addCustomer(customer)
+    } else if (selectedClient) {
+      updateCustomer(selectedClient.id, {
+        projectIds: Array.from(new Set([...selectedClient.projectIds, projectId]))
+      })
+    } else if (!selectedClient && selectedCustomerId) {
       const customer: Customer = {
         id: customerId,
         fullName: newCustomerName,
@@ -192,17 +326,37 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
         projectIds: [projectId]
       }
       addCustomer(customer)
-    } else if (selectedCustomer) {
-      updateCustomer(selectedCustomer.id, {
-        projectIds: Array.from(new Set([...selectedCustomer.projectIds, projectId]))
-      })
+    }
+
+    // Tạo tasks từ template nếu có loại dự án được chọn
+    let tasks: Task[] = []
+    if (selectedProjectTypeId) {
+      const defaultTemplates = getDefaultTaskTemplates(selectedProjectTypeId)
+      tasks = defaultTemplates.map((template, index) => ({
+        id: `task-${Date.now()}-${index}`,
+        title: template.title,
+        description: '',
+        status: 'todo' as TaskStatus,
+        images: [],
+        deadline: projectEnd, // Sử dụng ngày kết thúc dự án làm deadline mặc định
+        estimatedDays: null,
+        startDate: undefined,
+        completedAt: undefined,
+        actualDays: null,
+        updatedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedBy: user.name,
+        note: undefined,
+        order: index + 1,
+        fromTemplateId: template.id
+      }))
     }
 
     const project: Project = {
       id: projectId,
       name: projectName,
       location: projectFullAddress,
-      client: selectedClient ? selectedClient.fullName : (selectedCustomer ? selectedCustomer.fullName : newCustomerName),
+      client: selectedClient ? selectedClient.fullName : pendingNewCustomer ? pendingNewCustomer.fullName : (selectedCustomer ? selectedCustomer.fullName : newCustomerName),
       customerId,
       category,
       categoryNote: category === 'other' ? categoryNote : undefined,
@@ -220,14 +374,16 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
       distanceKm: distanceKm ? Number(distanceKm) : undefined,
       startDate: projectStart,
       endDate: projectEnd,
-      tasks: [],
+      tasks,
       createdAt: new Date().toISOString(),
       webhookUrl: webhookUrl || '',
       assignedStaff: selectedSupervisors,
+      projectTypeId: selectedProjectTypeId || undefined
     }
 
     addProject(project)
     showToast('✓ Đã tạo dự án thành công', 'success')
+    clearDraft()
     navigate(`/projects/${project.id}`)
   }
 
@@ -241,9 +397,17 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
             <p className="text-sm uppercase tracking-[0.2em] text-brand-500">Tạo dự án mới</p>
             <h1 className="mt-2 text-3xl font-semibold text-slate-900">Wizard tạo dự án</h1>
           </div>
-          <Button type="button" variant="secondary" onClick={() => navigate('/projects')}>
-            Hủy
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button type="button" variant="secondary" onClick={loadDraft}>
+              📁 Tải bản nháp
+            </Button>
+            <Button type="button" variant="secondary" onClick={saveDraft}>
+              💾 Lưu tạm
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => navigate('/projects')}>
+              Hủy
+            </Button>
+          </div>
         </div>
         <div className="mt-6 flex flex-wrap gap-3">
           {stepBoxes.map((item) => (
@@ -279,6 +443,8 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
                     className={`rounded-3xl border p-4 text-left transition ${customer.id === selectedCustomerId ? 'border-brand-900 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
                     onClick={() => {
                       setSelectedCustomerId(customer.id)
+                      setSelectedClientId(customer.id)
+                      setPendingNewCustomer(null)
                       setNewCustomerName('')
                     }}
                   >
@@ -373,6 +539,8 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
                       setShowNewCustomerModal(true)
                     } else {
                       setSelectedClientId(event.target.value)
+                      setSelectedCustomerId(event.target.value)
+                      setPendingNewCustomer(null)
                     }
                   }}
                 >
@@ -392,6 +560,22 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
                   placeholder="VD: Nhà phố 3 tầng - Nguyễn Văn A"
                 />
                 <p className="text-xs text-slate-500">Tên sẽ hiển thị trên toàn bộ báo cáo.</p>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">Loại dự án *</label>
+                <select
+                  className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3"
+                  value={selectedProjectTypeId}
+                  onChange={(event) => setSelectedProjectTypeId(event.target.value)}
+                >
+                  <option value="">Chọn loại dự án</option>
+                  {projectTypes.filter(pt => pt.isActive).map((projectType) => (
+                    <option key={projectType.id} value={projectType.id}>
+                      {projectType.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500">Tasks sẽ được tạo tự động từ template.</p>
               </div>
             </div>
 

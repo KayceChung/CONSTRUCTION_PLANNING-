@@ -259,6 +259,7 @@ export function createSeedProjects(): Project[] {
       createdAt: new Date().toISOString(),
       webhookUrl: 'https://yi7a1c8g.rpcld.co/webhook/00b8a546-422b-4786-ad00-0105bb20c435',
       assignedStaff: ['staff-manager', 'staff-nga'],
+      projectTypeId: '1', // Xây dựng nhà phố
       tasks: [
         {
           id: 't1-mong',
@@ -274,7 +275,8 @@ export function createSeedProjects(): Project[] {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           updatedBy: 'Trần Quản Lý',
-          order: 1
+          order: 1,
+          fromTemplateId: '4' // Đào móng
         },
         {
           id: 't2-tuong1',
@@ -290,7 +292,8 @@ export function createSeedProjects(): Project[] {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           updatedBy: 'Trần Quản Lý',
-          order: 2
+          order: 2,
+          fromTemplateId: '6' // Xây dựng khung nhà
         },
         {
           id: 't3-tuong2',
