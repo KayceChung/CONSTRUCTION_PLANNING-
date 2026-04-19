@@ -1,52 +1,54 @@
 import { create } from 'zustand'
 import { Project, Task, TaskStatus, User } from '../types'
-import { createSeedProjects, loadProjects, saveProjects } from '../utils/storage'
+import { loadProjects, saveProjects } from '../utils/storage'
 
 interface ProjectState {
   projects: Project[]
-  initProjects: () => void
-  addProject: (project: Project) => void
-  updateProject: (projectId: string, changes: Partial<Project>) => void
-  deleteProject: (projectId: string) => void
-  addTask: (projectId: string, task: Task) => void
-  updateTask: (projectId: string, taskId: string, changes: Partial<Task>) => void
-  deleteTask: (projectId: string, taskId: string) => void
+  initProjects: () => Promise<void>
+  addProject: (project: Project) => Promise<void>
+  updateProject: (projectId: string, changes: Partial<Project>) => Promise<void>
+  deleteProject: (projectId: string) => Promise<void>
+  addTask: (projectId: string, task: Task) => Promise<void>
+  updateTask: (projectId: string, taskId: string, changes: Partial<Task>) => Promise<void>
+  deleteTask: (projectId: string, taskId: string) => Promise<void>
   assignProjects: (user: User) => Project[]
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
-  initProjects: () => {
-    const saved = loadProjects()
-    const projects = saved.length > 0 ? saved : createSeedProjects()
-    saveProjects(projects)
-    set({ projects })
+  initProjects: async () => {
+    try {
+      const projects = await loadProjects()
+      set({ projects })
+    } catch (error) {
+      console.error('Error initializing projects:', error)
+    }
   },
-  addProject: (project) => {
+  addProject: async (project) => {
     const next = [...get().projects, project]
-    saveProjects(next)
+    await saveProjects(next)
     set({ projects: next })
   },
-  updateProject: (projectId, changes) => {
+  updateProject: async (projectId, changes) => {
     const next = get().projects.map((project) =>
       project.id === projectId ? { ...project, ...changes } : project
     )
-    saveProjects(next)
+    await saveProjects(next)
     set({ projects: next })
   },
-  deleteProject: (projectId) => {
+  deleteProject: async (projectId) => {
     const next = get().projects.filter((project) => project.id !== projectId)
-    saveProjects(next)
+    await saveProjects(next)
     set({ projects: next })
   },
-  addTask: (projectId, task) => {
+  addTask: async (projectId, task) => {
     const next = get().projects.map((project) =>
       project.id === projectId ? { ...project, tasks: [...project.tasks, task] } : project
     )
-    saveProjects(next)
+    await saveProjects(next)
     set({ projects: next })
   },
-  updateTask: (projectId, taskId, changes) => {
+  updateTask: async (projectId, taskId, changes) => {
     const next = get().projects.map((project) => {
       if (project.id !== projectId) return project
       const tasks = project.tasks.map((task) =>
@@ -54,16 +56,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       )
       return { ...project, tasks }
     })
-    saveProjects(next)
+    await saveProjects(next)
     set({ projects: next })
   },
-  deleteTask: (projectId, taskId) => {
+  deleteTask: async (projectId, taskId) => {
     const next = get().projects.map((project) =>
       project.id === projectId
         ? { ...project, tasks: project.tasks.filter((task) => task.id !== taskId) }
         : project
     )
-    saveProjects(next)
+    await saveProjects(next)
     set({ projects: next })
   },
   assignProjects: (user) => {

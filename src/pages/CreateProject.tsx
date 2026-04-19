@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { v4 as uuidv4 } from 'uuid'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useCustomerStore } from '../stores/useCustomerStore'
 import { useProjectStore } from '../stores/useProjectStore'
@@ -27,6 +28,13 @@ function formatContractValueLabel(value: number) {
   if (value >= 1e9) return `≈ ${Math.round(value / 1e8) / 10} tỷ đồng`
   if (value >= 1e6) return `≈ ${Math.round(value / 1e5) / 10} triệu đồng`
   return `${formatCurrency(value)} đ`
+}
+
+function getErrorMessage(error: unknown) {
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message
+  }
+  return 'Có lỗi khi lưu dữ liệu lên Supabase'
 }
 
 const stepTitles = ['Khách hàng', 'Dự án', 'Hạng mục & Tài chính', 'Xác nhận']
@@ -63,6 +71,8 @@ interface DraftData {
 }
 
 const DRAFT_KEY = 'project-creation-draft'
+
+const PENDING_CUSTOMER_OPTION = '__pending_customer__'
 
 export default function CreateProject({ showToast }: { showToast: (message: string, type?: 'success' | 'error' | 'info') => void }) {
   const navigate = useNavigate()
@@ -223,7 +233,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
     )
   }, [customers, searchText])
 
-  const handleNewCustomerSubmit = (customerData: {
+  const handleNewCustomerSubmit = async (customerData: {
     fullName: string
     phone: string
     phone2?: string
@@ -232,15 +242,20 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
     note?: string
   }) => {
     const newCustomer: Customer = {
-      id: `cust-${Date.now()}`,
+      id: uuidv4(),
       ...customerData,
       createdAt: new Date().toISOString(),
       projectIds: []
     }
-    addCustomer(newCustomer)
-    setSelectedCustomerId(newCustomer.id)
-    setSelectedClientId(newCustomer.id)
-    setPendingNewCustomer(customerData)
+    try {
+      await addCustomer(newCustomer)
+      setSelectedCustomerId(newCustomer.id)
+      setSelectedClientId(newCustomer.id)
+      setPendingNewCustomer(customerData)
+    } catch (error) {
+      console.error('Error creating customer during project flow:', error)
+      showToast(getErrorMessage(error), 'error')
+    }
   }
 
   useEffect(() => {
@@ -271,6 +286,9 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
     [customers, selectedCustomerId]
   )
 
+  const hasInlineCustomer = Boolean(newCustomerName.trim() && phoneRegex.test(newCustomerPhone))
+  const customerSelectionValue = selectedClientId || (pendingNewCustomer ? PENDING_CUSTOMER_OPTION : '')
+
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
     if (!files) return
@@ -287,7 +305,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
         reader.readAsDataURL(file)
       })
       nextAttachments.push({
-        id: `att-${Date.now()}-${file.name}`,
+        id: uuidv4(),
         name: file.name,
         url: dataUrl,
         type: file.type === 'application/pdf' ? 'pdf' : file.type.startsWith('image/') ? 'image' : 'other',
@@ -303,104 +321,108 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   }
 
   const canProceedStep1 = selectedCustomerId || (newCustomerName && phoneRegex.test(newCustomerPhone))
-  const canProceedStep2 = selectedClientId && projectName && selectedProjectTypeId && projectFullAddress && projectProvince && projectStart && projectEnd && selectedSupervisors.length > 0
+  const canProceedStep2 = (selectedClientId || pendingNewCustomer || hasInlineCustomer) && projectName && selectedProjectTypeId && projectFullAddress && projectProvince && projectStart && projectEnd && selectedSupervisors.length > 0
   const canProceedStep3 = contractValueNumber > 0 && paidAmountNumber >= 0
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!user) return
     if (!canProceedStep1 || !canProceedStep2 || !canProceedStep3) {
       showToast('Vui lòng hoàn thành đầy đủ thông tin trước khi tạo dự án', 'error')
       return
     }
 
-    const customerId = selectedClientId || selectedCustomerId || `cust-${Date.now()}`
-    const projectId = `proj-${Date.now()}`
-    const selectedClient = customers.find((c) => c.id === customerId)
+    try {
+      const customerId = selectedClientId || selectedCustomerId || uuidv4()
+      const projectId = uuidv4()
+      const selectedClient = customers.find((c) => c.id === customerId)
 
-    if (!selectedClient && pendingNewCustomer) {
-      const customer: Customer = {
-        id: customerId,
-        ...pendingNewCustomer,
-        createdAt: new Date().toISOString(),
-        projectIds: [projectId]
+      if (!selectedClient && pendingNewCustomer) {
+        const customer: Customer = {
+          id: customerId,
+          ...pendingNewCustomer,
+          createdAt: new Date().toISOString(),
+          projectIds: [projectId]
+        }
+        await addCustomer(customer)
+      } else if (selectedClient) {
+        await updateCustomer(selectedClient.id, {
+          projectIds: Array.from(new Set([...selectedClient.projectIds, projectId]))
+        })
+      } else if (!selectedClient && selectedCustomerId) {
+        const customer: Customer = {
+          id: customerId,
+          fullName: newCustomerName,
+          phone: newCustomerPhone,
+          phone2: newCustomerPhone2 || undefined,
+          email: newCustomerEmail || undefined,
+          address: newCustomerAddress || undefined,
+          note: newCustomerNote || undefined,
+          createdAt: new Date().toISOString(),
+          projectIds: [projectId]
+        }
+        await addCustomer(customer)
       }
-      addCustomer(customer)
-    } else if (selectedClient) {
-      updateCustomer(selectedClient.id, {
-        projectIds: Array.from(new Set([...selectedClient.projectIds, projectId]))
-      })
-    } else if (!selectedClient && selectedCustomerId) {
-      const customer: Customer = {
-        id: customerId,
-        fullName: newCustomerName,
-        phone: newCustomerPhone,
-        phone2: newCustomerPhone2 || undefined,
-        email: newCustomerEmail || undefined,
-        address: newCustomerAddress || undefined,
-        note: newCustomerNote || undefined,
-        createdAt: new Date().toISOString(),
-        projectIds: [projectId]
+
+      let tasks: Task[] = []
+      if (selectedProjectTypeId) {
+        const defaultTemplates = getDefaultTaskTemplates(selectedProjectTypeId)
+        tasks = defaultTemplates.map((template, index) => ({
+          id: uuidv4(),
+          title: template.title,
+          description: '',
+          status: 'todo' as TaskStatus,
+          images: [],
+          deadline: projectEnd,
+          estimatedDays: null,
+          startDate: undefined,
+          completedAt: undefined,
+          actualDays: null,
+          updatedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedBy: user.name,
+          note: undefined,
+          order: index + 1,
+          fromTemplateId: template.id
+        }))
       }
-      addCustomer(customer)
-    }
 
-    // Tạo tasks từ template nếu có loại dự án được chọn
-    let tasks: Task[] = []
-    if (selectedProjectTypeId) {
-      const defaultTemplates = getDefaultTaskTemplates(selectedProjectTypeId)
-      tasks = defaultTemplates.map((template, index) => ({
-        id: `task-${Date.now()}-${index}`,
-        title: template.title,
-        description: '',
-        status: 'todo' as TaskStatus,
-        images: [],
-        deadline: projectEnd, // Sử dụng ngày kết thúc dự án làm deadline mặc định
-        estimatedDays: null,
-        startDate: undefined,
-        completedAt: undefined,
-        actualDays: null,
-        updatedAt: new Date().toISOString(),
+      const project: Project = {
+        id: projectId,
+        name: projectName,
+        location: projectFullAddress,
+        client: selectedClient ? selectedClient.fullName : pendingNewCustomer ? pendingNewCustomer.fullName : (selectedCustomer ? selectedCustomer.fullName : newCustomerName),
+        customerId,
+        category,
+        categoryNote: category === 'other' ? categoryNote : undefined,
+        address: {
+          fullAddress: projectFullAddress,
+          ward: projectWard || undefined,
+          district: projectDistrict || undefined,
+          province: projectProvince || undefined,
+          googleMapsUrl: projectMapsUrl || undefined
+        },
+        contractValue: contractValueNumber,
+        paidAmount: paidAmountNumber,
+        paymentNote: paymentNote || undefined,
+        attachments,
+        distanceKm: distanceKm ? Number(distanceKm) : undefined,
+        startDate: projectStart,
+        endDate: projectEnd,
+        tasks,
         createdAt: new Date().toISOString(),
-        updatedBy: user.name,
-        note: undefined,
-        order: index + 1,
-        fromTemplateId: template.id
-      }))
-    }
+        webhookUrl: webhookUrl || '',
+        assignedStaff: selectedSupervisors,
+        projectTypeId: selectedProjectTypeId || undefined
+      }
 
-    const project: Project = {
-      id: projectId,
-      name: projectName,
-      location: projectFullAddress,
-      client: selectedClient ? selectedClient.fullName : pendingNewCustomer ? pendingNewCustomer.fullName : (selectedCustomer ? selectedCustomer.fullName : newCustomerName),
-      customerId,
-      category,
-      categoryNote: category === 'other' ? categoryNote : undefined,
-      address: {
-        fullAddress: projectFullAddress,
-        ward: projectWard || undefined,
-        district: projectDistrict || undefined,
-        province: projectProvince || undefined,
-        googleMapsUrl: projectMapsUrl || undefined
-      },
-      contractValue: contractValueNumber,
-      paidAmount: paidAmountNumber,
-      paymentNote: paymentNote || undefined,
-      attachments,
-      distanceKm: distanceKm ? Number(distanceKm) : undefined,
-      startDate: projectStart,
-      endDate: projectEnd,
-      tasks,
-      createdAt: new Date().toISOString(),
-      webhookUrl: webhookUrl || '',
-      assignedStaff: selectedSupervisors,
-      projectTypeId: selectedProjectTypeId || undefined
+      await addProject(project)
+      showToast('✓ Đã tạo dự án thành công', 'success')
+      clearDraft()
+      navigate(`/projects/${project.id}`)
+    } catch (error) {
+      console.error('Error creating project:', error)
+      showToast(getErrorMessage(error), 'error')
     }
-
-    addProject(project)
-    showToast('✓ Đã tạo dự án thành công', 'success')
-    clearDraft()
-    navigate(`/projects/${project.id}`)
   }
 
   const stepBoxes = [1, 2, 3, 4]
@@ -549,10 +571,12 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
                 <label className="block text-sm font-semibold text-slate-700">Chủ đầu tư *</label>
                 <select
                   className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3"
-                  value={selectedClientId}
+                  value={customerSelectionValue}
                   onChange={(event) => {
                     if (event.target.value === 'new') {
                       setShowNewCustomerModal(true)
+                    } else if (event.target.value === PENDING_CUSTOMER_OPTION) {
+                      return
                     } else {
                       setSelectedClientId(event.target.value)
                       setSelectedCustomerId(event.target.value)
@@ -561,11 +585,13 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
                   }}
                 >
                   <option value="">Chọn chủ đầu tư</option>
+                  {pendingNewCustomer ? <option value={PENDING_CUSTOMER_OPTION}>Khách mới: {pendingNewCustomer.fullName}</option> : null}
                   {customers.map((customer) => (
                     <option key={customer.id} value={customer.id}>{customer.fullName}</option>
                   ))}
                   <option value="new">+ Tạo khách hàng mới</option>
                 </select>
+                {pendingNewCustomer ? <p className="text-xs text-slate-500">Khách hàng mới sẽ được tạo khi bạn xác nhận dự án.</p> : null}
               </div>
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-slate-700">Tên dự án *</label>
@@ -884,6 +910,17 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
               if (step === 1 && !canProceedStep1) {
                 showToast('Vui lòng chọn hoặc tạo khách hàng trước khi tiếp tục', 'error')
                 return
+              }
+              if (step === 1 && !selectedCustomerId && hasInlineCustomer) {
+                setPendingNewCustomer({
+                  fullName: newCustomerName.trim(),
+                  phone: newCustomerPhone.trim(),
+                  phone2: newCustomerPhone2.trim() || undefined,
+                  email: newCustomerEmail.trim() || undefined,
+                  address: newCustomerAddress.trim() || undefined,
+                  note: newCustomerNote.trim() || undefined,
+                })
+                setSelectedClientId('')
               }
               if (step === 2 && !canProceedStep2) {
                 showToast('Vui lòng hoàn thành thông tin dự án trước khi tiếp tục', 'error')

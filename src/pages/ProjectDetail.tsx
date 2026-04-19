@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { v4 as uuidv4 } from 'uuid'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useCustomerStore } from '../stores/useCustomerStore'
 import { useProjectStore } from '../stores/useProjectStore'
+import { useStaffStore } from '../stores/useStaffStore'
 import Header from '../components/layout/Header'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
@@ -50,8 +52,13 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'finance' | 'images' | 'logs'>('overview')
 
   const customers = useCustomerStore((state) => state.customers)
+  const staff = useStaffStore((state) => state.staff)
   const project = useMemo(() => projects.find((item) => item.id === projectId) || null, [projects, projectId])
   const customer = useMemo(() => project ? customers.find((item) => item.id === project.customerId) || null : null, [customers, project])
+  const assignedPersonnel = useMemo(
+    () => staff.filter((item) => project?.assignedStaff.includes(item.id)),
+    [project, staff]
+  )
 
   const calculateDeadline = (startDate: string, estimatedDays: number) => {
     const date = new Date(startDate)
@@ -142,7 +149,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
 
   const createTask = (data: { title: string; description?: string; startDate: string; estimatedDays: number; deadline?: string }) => {
     const task: Task = {
-      id: `task-${Date.now()}`,
+      id: uuidv4(),
       title: data.title,
       description: data.description || 'Công việc mới cần cập nhật mô tả chi tiết.',
       status: 'todo',
@@ -369,6 +376,17 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
                 <p>Hoàn thành: {project.tasks.filter(t => t.status === 'done').length}</p>
                 <p>Đang làm: {project.tasks.filter(t => t.status === 'in_progress').length}</p>
                 <p>Chưa bắt đầu: {project.tasks.filter(t => t.status === 'todo').length}</p>
+              </div>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm text-slate-500">Nhân sự được phân công</p>
+              <div className="mt-3 space-y-2">
+                {assignedPersonnel.length > 0 ? assignedPersonnel.map((member) => (
+                  <div key={member.id} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                    <p className="font-semibold text-slate-900">{member.name}</p>
+                    <p className="mt-1">{member.role === 'manager' ? 'Quản lý' : 'Giám sát'}</p>
+                  </div>
+                )) : <p className="text-sm text-slate-500">Chưa có nhân sự nào được phân công vào dự án này.</p>}
               </div>
             </div>
           </div>

@@ -1,12 +1,11 @@
-import { useMemo, useState, useEffect } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useProjectStore } from '../stores/useProjectStore'
 import { useAuthStore } from '../stores/useAuthStore'
 import { calculateProjectProgress } from '../utils/progress'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import ConfirmModal from '../components/modals/ConfirmModal'
-import ProjectCreateModal from '../components/modals/ProjectCreateModal'
 import { Project } from '../types'
 
 interface ProjectListProps {
@@ -15,31 +14,16 @@ interface ProjectListProps {
 
 export default function ProjectList({ showToast }: ProjectListProps) {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const projects = useProjectStore((state) => state.projects)
   const deleteProject = useProjectStore((state) => state.deleteProject)
   const user = useAuthStore((state) => state.user)
   const [activeProject, setActiveProject] = useState<Project | null>(null)
   const [showDelete, setShowDelete] = useState(false)
-  const [showCreateModal, setShowCreateModal] = useState(false)
 
   const canEdit = user?.role === 'manager'
 
-  // Check for ?action=new in URL and open modal
-  useEffect(() => {
-    if (searchParams.get('action') === 'new') {
-      setShowCreateModal(true)
-      // Remove the query param from URL
-      navigate('/projects', { replace: true })
-    }
-  }, [searchParams, navigate])
-
   const handleNavigateToCreate = () => {
-    setShowCreateModal(true)
-  }
-
-  const handleCloseCreateModal = () => {
-    setShowCreateModal(false)
+    navigate('/projects/new')
   }
 
   return (
@@ -95,14 +79,12 @@ export default function ProjectList({ showToast }: ProjectListProps) {
           description={`Bạn có chắc muốn xóa dự án ${activeProject.name}?`}
           onCancel={() => setShowDelete(false)}
           onConfirm={() => {
-            deleteProject(activeProject.id)
+            void deleteProject(activeProject.id)
             setShowDelete(false)
             showToast('Dự án đã được xóa', 'success')
           }}
         />
       ) : null}
-
-      <ProjectCreateModal isOpen={showCreateModal} onClose={handleCloseCreateModal} showToast={showToast} />
     </div>
   )
 }

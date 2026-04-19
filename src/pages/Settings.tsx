@@ -174,8 +174,8 @@ export default function Settings({ showToast }: SettingsProps) {
     })
   )
 
-  const handleAddProjectType = () => {
-    addProjectType({
+  const handleAddProjectType = async () => {
+    await addProjectType({
       name: 'Loại dự án mới',
       color: '#3B82F6',
       isActive: true
@@ -183,9 +183,9 @@ export default function Settings({ showToast }: SettingsProps) {
     showToast('Loại dự án đã được thêm', 'success')
   }
 
-  const handleUpdateProjectTypeName = (id: string, newName: string) => {
+  const handleUpdateProjectTypeName = async (id: string, newName: string) => {
     if (newName.trim()) {
-      updateProjectType(id, { name: newName.trim() })
+      await updateProjectType(id, { name: newName.trim() })
       setEditingProjectTypeId(null)
     }
   }
@@ -195,8 +195,8 @@ export default function Settings({ showToast }: SettingsProps) {
     setShowDeleteConfirm({ type: 'project', id })
   }
 
-  const handleConfirmDeleteProjectType = (id: string) => {
-    deleteProjectType(id)
+  const handleConfirmDeleteProjectType = async (id: string) => {
+    await deleteProjectType(id)
     if (selectedProjectTypeId === id) {
       setSelectedProjectTypeId(projectTypes[0]?.id || null)
     }
@@ -204,10 +204,10 @@ export default function Settings({ showToast }: SettingsProps) {
     showToast('Loại dự án đã được xóa', 'success')
   }
 
-  const handleAddTaskTemplate = () => {
+  const handleAddTaskTemplate = async () => {
     if (!selectedProjectType || !newTaskTitle.trim()) return
 
-    addTaskTemplate({
+    await addTaskTemplate({
       projectTypeId: selectedProjectType.id,
       title: newTaskTitle.trim(),
       sortOrder: selectedTypeTaskTemplates.length + 1,

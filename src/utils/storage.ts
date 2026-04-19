@@ -1,129 +1,424 @@
-﻿import { AuthSession, ChangeLog, ContactLog, Customer, Project, Staff, User } from '../types'
+﻿import { Attachment, AuthSession, ChangeLog, Customer, InteractionLog, Project, ProjectType, Staff, Task, TaskTemplate, User } from '../types'
+import { supabase } from '../lib/supabase'
 
 const STORAGE_KEY = 'constructtrack_data'
 const SESSION_KEY = 'constructtrack_session'
 
-export interface StoredData {
-  projects: Project[]
-  staff: Staff[]
-  customers: Customer[]
-  contactLogs: ContactLog[]
-  changeLogs: ChangeLog[]
-}
-
-export function loadData(): StoredData {
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return { projects: [], staff: [], customers: [], contactLogs: [], changeLogs: [] }
-
-  try {
-    const parsed = JSON.parse(raw) as StoredData
-    return {
-      projects: parsed.projects || [],
-      staff: parsed.staff || [],
-      customers: parsed.customers || [],
-      contactLogs: parsed.contactLogs || [],
-      changeLogs: parsed.changeLogs || []
-    }
-  } catch {
-    return { projects: [], staff: [], customers: [], contactLogs: [], changeLogs: [] }
-  }
-}
-
-export function saveData(data: StoredData): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-}
-
-export function loadProjects(): Project[] {
-  return loadData().projects
-}
-
-export function saveProjects(projects: Project[]): void {
-  saveData({
-    ...loadData(),
-    projects
-  })
-}
-
-export function loadStaff(): Staff[] {
-  return loadData().staff
-}
-
-export function saveStaff(staff: Staff[]): void {
-  saveData({
-    ...loadData(),
-    staff
-  })
-}
-
-export function loadCustomers(): Customer[] {
-  return loadData().customers
-}
-
-export function saveCustomers(customers: Customer[]): void {
-  saveData({
-    ...loadData(),
-    customers
-  })
-}
-
-export function loadContactLogs(): ContactLog[] {
-  return loadData().contactLogs
-}
-
-export function saveContactLogs(contactLogs: ContactLog[]): void {
-  saveData({
-    ...loadData(),
-    contactLogs
-  })
-}
-
-export function loadUser(): User | null {
-  const session = loadSession()
-  if (!session) return null
+function mapTaskFromRow(row: any): Task {
   return {
-    id: session.userId,
-    name: session.name,
-    role: session.role
+    id: row.id,
+    title: row.title,
+    description: row.description || '',
+    status: row.status,
+    images: row.images || [],
+    deadline: row.deadline,
+    estimatedDays: row.estimated_days,
+    startDate: row.start_date || undefined,
+    completedAt: row.completed_at || undefined,
+    actualDays: row.actual_days ?? null,
+    updatedAt: row.updated_at || row.created_at,
+    createdAt: row.created_at,
+    updatedBy: row.updated_by,
+    note: row.note || undefined,
+    order: row.sort_order ?? 0,
+    fromTemplateId: row.from_template_id || null,
+    assignee: row.assignee || undefined,
+    taskDeadline: row.task_deadline || undefined,
   }
 }
 
-export function saveUser(user: User | null): void {
-  if (!user) {
-    saveSession(null)
+function mapTaskToRow(task: Task, projectId: string) {
+  return {
+    id: task.id,
+    project_id: projectId,
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    images: task.images,
+    deadline: task.deadline,
+    estimated_days: task.estimatedDays,
+    start_date: task.startDate || null,
+    completed_at: task.completedAt || null,
+    actual_days: task.actualDays ?? null,
+    updated_by: task.updatedBy,
+    note: task.note || null,
+    sort_order: task.order,
+    from_template_id: task.fromTemplateId || null,
+    assignee: task.assignee || null,
+    task_deadline: task.taskDeadline || null,
+    created_at: task.createdAt,
+    updated_at: task.updatedAt,
+  }
+}
+
+function mapAttachmentFromRow(row: any): Attachment {
+  return {
+    id: row.id,
+    name: row.name,
+    url: row.url,
+    type: row.type,
+    size: row.size,
+    uploadedAt: row.uploaded_at,
+  }
+}
+
+function mapAttachmentToRow(attachment: Attachment, projectId: string) {
+  return {
+    id: attachment.id,
+    project_id: projectId,
+    name: attachment.name,
+    url: attachment.url,
+    type: attachment.type,
+    size: attachment.size,
+    uploaded_at: attachment.uploadedAt,
+  }
+}
+
+function mapProjectFromRow(row: any): Project {
+  return {
+    id: row.id,
+    name: row.name,
+    location: row.location,
+    client: row.client,
+    customerId: row.customer_id,
+    category: row.category,
+    categoryNote: row.category_note || undefined,
+    address: {
+      fullAddress: row.address_full,
+      ward: row.address_ward || undefined,
+      district: row.address_district || undefined,
+      province: row.address_province || undefined,
+      googleMapsUrl: row.address_google_maps_url || undefined,
+    },
+    contractValue: Number(row.contract_value || 0),
+    paidAmount: Number(row.paid_amount || 0),
+    paymentNote: row.payment_note || undefined,
+    attachments: Array.isArray(row.attachments) ? row.attachments.map(mapAttachmentFromRow) : [],
+    distanceKm: row.distance_km == null ? undefined : Number(row.distance_km),
+    startDate: row.start_date,
+    endDate: row.end_date,
+    tasks: Array.isArray(row.tasks)
+      ? (row.tasks.map(mapTaskFromRow) as Task[]).sort((left: Task, right: Task) => left.order - right.order)
+      : [],
+    createdAt: row.created_at,
+    webhookUrl: row.webhook_url || '',
+    assignedStaff: row.assigned_staff || [],
+    projectTypeId: row.project_type_id || null,
+    notes: row.notes || undefined,
+    zaloGroupThreadId: row.zalo_group_thread_id || undefined,
+    zaloGroupName: row.zalo_group_name || undefined,
+    zaloLinkedAt: row.zalo_linked_at || undefined,
+    zaloStatus: row.zalo_status || null,
+  }
+}
+
+function mapProjectToRow(project: Project) {
+  return {
+    id: project.id,
+    name: project.name,
+    location: project.location,
+    client: project.client,
+    customer_id: project.customerId,
+    category: project.category,
+    category_note: project.categoryNote || null,
+    address_full: project.address.fullAddress,
+    address_ward: project.address.ward || null,
+    address_district: project.address.district || null,
+    address_province: project.address.province || null,
+    address_google_maps_url: project.address.googleMapsUrl || null,
+    contract_value: project.contractValue,
+    paid_amount: project.paidAmount,
+    payment_note: project.paymentNote || null,
+    distance_km: project.distanceKm ?? null,
+    start_date: project.startDate,
+    end_date: project.endDate,
+    webhook_url: project.webhookUrl,
+    assigned_staff: project.assignedStaff,
+    project_type_id: project.projectTypeId || null,
+    notes: project.notes || null,
+    zalo_group_thread_id: project.zaloGroupThreadId || null,
+    zalo_group_name: project.zaloGroupName || null,
+    zalo_linked_at: project.zaloLinkedAt || null,
+    zalo_status: project.zaloStatus || null,
+    created_at: project.createdAt,
+    updated_at: new Date().toISOString(),
+  }
+}
+
+function mapStaffFromRow(row: any): Staff {
+  return {
+    id: row.id,
+    name: row.name || row.full_name || row.email || '',
+    phone: row.phone || '',
+    email: row.email || undefined,
+    role: row.role,
+    assignedProjects: [],
+    avatar: row.avatar || undefined,
+    pinHash: undefined,
+    isActive: row.is_active ?? false,
+    createdAt: row.created_at,
+  }
+}
+
+function mapCustomerFromRow(row: any): Customer {
+  return {
+    id: row.id,
+    fullName: row.full_name,
+    phone: row.phone,
+    phone2: row.phone2 || undefined,
+    email: row.email || undefined,
+    address: row.address || undefined,
+    source: row.source || undefined,
+    status: row.status || 'lead',
+    note: row.note || undefined,
+    notes: row.notes || undefined,
+    zaloThreadId: row.zalo_thread_id || undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at || undefined,
+    projectIds: [],
+  }
+}
+
+function mapCustomerToRow(customer: Customer) {
+  return {
+    id: customer.id,
+    full_name: customer.fullName,
+    phone: customer.phone,
+    phone2: customer.phone2 || null,
+    email: customer.email || null,
+    address: customer.address || null,
+    source: customer.source || null,
+    status: customer.status || 'lead',
+    note: customer.note || null,
+    notes: customer.notes || null,
+    zalo_thread_id: customer.zaloThreadId || null,
+    created_at: customer.createdAt,
+    updated_at: customer.updatedAt || new Date().toISOString(),
+  }
+}
+
+function mapInteractionLogFromRow(row: any): InteractionLog {
+  return {
+    id: row.id,
+    customerId: row.customer_id,
+    type: row.type,
+    date: row.date,
+    time: row.time || undefined,
+    summary: row.summary,
+    nextAction: row.next_action || undefined,
+    nextActionDate: row.next_action_date || undefined,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+  }
+}
+
+function mapInteractionLogToRow(log: InteractionLog) {
+  return {
+    id: log.id,
+    customer_id: log.customerId,
+    type: log.type,
+    date: log.date,
+    time: log.time || null,
+    summary: log.summary,
+    next_action: log.nextAction || null,
+    next_action_date: log.nextActionDate || null,
+    created_by: log.createdBy,
+    created_at: log.createdAt,
+  }
+}
+
+function mapProjectTypeFromRow(row: any): ProjectType {
+  return {
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    isActive: row.is_active ?? true,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+function mapProjectTypeToRow(projectType: ProjectType) {
+  return {
+    id: projectType.id,
+    name: projectType.name,
+    color: projectType.color,
+    is_active: projectType.isActive,
+    created_at: projectType.createdAt,
+    updated_at: projectType.updatedAt,
+  }
+}
+
+function mapTaskTemplateFromRow(row: any): TaskTemplate {
+  return {
+    id: row.id,
+    projectTypeId: row.project_type_id,
+    title: row.title,
+    sortOrder: row.sort_order,
+    isDefault: row.is_default ?? true,
+    estimatedDays: row.estimated_days,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+function mapTaskTemplateToRow(taskTemplate: TaskTemplate) {
+  return {
+    id: taskTemplate.id,
+    project_type_id: taskTemplate.projectTypeId,
+    title: taskTemplate.title,
+    sort_order: taskTemplate.sortOrder,
+    is_default: taskTemplate.isDefault,
+    estimated_days: taskTemplate.estimatedDays,
+    created_at: taskTemplate.createdAt,
+    updated_at: taskTemplate.updatedAt,
+  }
+}
+
+export async function loadProjects(): Promise<Project[]> {
+  const { data, error } = await supabase
+    .from('projects')
+    .select(`
+      *,
+      tasks (*),
+      attachments (*)
+    `)
+  if (error) throw error
+  return (data || []).map(mapProjectFromRow)
+}
+
+export async function saveProjects(projects: Project[]): Promise<void> {
+  const projectRows = projects.map(mapProjectToRow)
+  const taskRows = projects.flatMap((project) => project.tasks.map((task) => mapTaskToRow(task, project.id)))
+  const attachmentRows = projects.flatMap((project) => project.attachments.map((attachment) => mapAttachmentToRow(attachment, project.id)))
+
+  const { error: projectError } = await supabase
+    .from('projects')
+    .upsert(projectRows, { onConflict: 'id' })
+  if (projectError) throw projectError
+
+  if (taskRows.length > 0) {
+    const { error: taskError } = await supabase
+      .from('tasks')
+      .upsert(taskRows, { onConflict: 'id' })
+    if (taskError) throw taskError
+  }
+
+  if (attachmentRows.length > 0) {
+    const { error: attachmentError } = await supabase
+      .from('attachments')
+      .upsert(attachmentRows, { onConflict: 'id' })
+    if (attachmentError) throw attachmentError
+  }
+}
+
+export async function loadStaff(): Promise<Staff[]> {
+  const { data, error } = await supabase
+    .from('staff')
+    .select('*')
+  if (error) throw error
+  return (data || []).map(mapStaffFromRow)
+}
+
+export async function saveStaff(staff: Staff[]): Promise<void> {
+  const { error } = await supabase
+    .from('staff')
+    .upsert(
+      staff.map((member) => ({
+        id: member.id,
+        name: member.name,
+        phone: member.phone,
+        email: member.email || null,
+        role: member.role,
+        avatar: member.avatar || null,
+        is_active: member.isActive,
+        created_at: member.createdAt,
+      })),
+      { onConflict: 'id' }
+    )
+  if (error) throw error
+}
+
+export async function updateStaffRecord(staffId: string, changes: Partial<Staff>): Promise<void> {
+  const updateRow: Record<string, unknown> = {}
+
+  if (changes.name !== undefined) updateRow.name = changes.name
+  if (changes.phone !== undefined) updateRow.phone = changes.phone
+  if (changes.email !== undefined) updateRow.email = changes.email || null
+  if (changes.role !== undefined) updateRow.role = changes.role
+  if (changes.avatar !== undefined) updateRow.avatar = changes.avatar || null
+  if (changes.isActive !== undefined) updateRow.is_active = changes.isActive
+
+  if (Object.keys(updateRow).length === 0) {
     return
   }
 
-  saveSession({
-    userId: user.id,
-    name: user.name,
-    role: user.role,
-    loginAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 4).toISOString()
-  })
+  const { error } = await supabase
+    .from('staff')
+    .update(updateRow)
+    .eq('id', staffId)
+
+  if (error) throw error
 }
 
-export function loadSession(): AuthSession | null {
-  const raw = localStorage.getItem(SESSION_KEY)
-  if (!raw) return null
-
-  try {
-    const parsed = JSON.parse(raw) as AuthSession
-    if (new Date(parsed.expiresAt) <= new Date()) {
-      localStorage.removeItem(SESSION_KEY)
-      return null
-    }
-    return parsed
-  } catch {
-    return null
-  }
+export async function loadCustomers(): Promise<Customer[]> {
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+  if (error) throw error
+  return (data || []).map(mapCustomerFromRow)
 }
 
-export function saveSession(session: AuthSession | null): void {
-  if (!session) {
-    localStorage.removeItem(SESSION_KEY)
-    return
-  }
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+export async function saveCustomers(customers: Customer[]): Promise<void> {
+  const { error } = await supabase
+    .from('customers')
+    .upsert(customers.map(mapCustomerToRow), { onConflict: 'id' })
+  if (error) throw error
+}
+
+export async function loadInteractionLogs(): Promise<InteractionLog[]> {
+  const { data, error } = await supabase
+    .from('interaction_logs')
+    .select('*')
+  if (error) throw error
+  return (data || []).map(mapInteractionLogFromRow)
+}
+
+export async function saveInteractionLogs(interactionLogs: InteractionLog[]): Promise<void> {
+  const { error } = await supabase
+    .from('interaction_logs')
+    .upsert(interactionLogs.map(mapInteractionLogToRow), { onConflict: 'id' })
+  if (error) throw error
+}
+
+export async function loadProjectTypes(): Promise<ProjectType[]> {
+  const { data, error } = await supabase
+    .from('project_types')
+    .select('*')
+  if (error) throw error
+  return (data || []).map(mapProjectTypeFromRow)
+}
+
+export async function saveProjectTypes(projectTypes: ProjectType[]): Promise<void> {
+  const { error } = await supabase
+    .from('project_types')
+    .upsert(projectTypes.map(mapProjectTypeToRow), { onConflict: 'id' })
+  if (error) throw error
+}
+
+export async function loadTaskTemplates(): Promise<TaskTemplate[]> {
+  const { data, error } = await supabase
+    .from('task_templates')
+    .select('*')
+  if (error) throw error
+  return (data || []).map(mapTaskTemplateFromRow)
+}
+
+export async function saveTaskTemplates(taskTemplates: TaskTemplate[]): Promise<void> {
+  const { error } = await supabase
+    .from('task_templates')
+    .upsert(taskTemplates.map(mapTaskTemplateToRow), { onConflict: 'id' })
+  if (error) throw error
 }
 
 export function createSeedStaff(): Staff[] {
@@ -175,6 +470,7 @@ export function createSeedCustomers(): Customer[] {
       phone: '0901111222',
       email: 'an.q7@example.com',
       address: 'Quận 7, TP. HCM',
+      status: 'contracted',
       note: 'Khách hàng quen, ưu tiên báo cáo qua Zalo',
       createdAt: new Date().toISOString(),
       projectIds: ['proj-q7']
@@ -192,40 +488,50 @@ export function createSeedCustomers(): Customer[] {
     {
       id: 'cust-cuong',
       fullName: 'Lê Hoàng Cường',
-      phone: '0923555666',
+      phone: '0777447107',
       address: 'Quận 2, TP. HCM',
+      status: 'lead',
       createdAt: new Date().toISOString(),
       projectIds: []
     }
   ]
 }
 
-export function createSeedContactLogs(): ContactLog[] {
+export function createSeedInteractionLogs(): InteractionLog[] {
   return [
     {
       id: 'log-1',
       customerId: 'cust-an',
+      type: 'call',
       date: '2025-01-15',
-      method: 'phone',
-      content: 'Gọi trao đổi tiến độ và xác nhận bản vẽ thi công.',
+      time: '14:30',
+      summary: 'Gọi trao đổi tiến độ và xác nhận bản vẽ thi công.',
+      nextAction: 'Gửi bản vẽ đã chỉnh sửa',
+      nextActionDate: '2025-01-20',
       createdBy: 'Trần Quản Lý',
       createdAt: new Date().toISOString()
     },
     {
       id: 'log-2',
       customerId: 'cust-an',
+      type: 'zalo',
       date: '2025-03-08',
-      method: 'zalo',
-      content: 'Gửi hình ảnh tiến độ phần móng và xin phản hồi.',
+      time: '10:15',
+      summary: 'Gửi hình ảnh tiến độ phần móng và xin phản hồi.',
+      nextAction: 'Theo dõi phản hồi khách hàng',
+      nextActionDate: '2025-03-10',
       createdBy: 'Nguyễn Giám Sát',
       createdAt: new Date().toISOString()
     },
     {
       id: 'log-3',
       customerId: 'cust-an',
+      type: 'meet',
       date: '2025-04-22',
-      method: 'meeting',
-      content: 'Đón khách tại công trường và thảo luận tổng kết thi công.',
+      time: '16:00',
+      summary: 'Đón khách tại công trường và thảo luận tổng kết thi công.',
+      nextAction: 'Chuẩn bị báo cáo hoàn thành',
+      nextActionDate: '2025-04-25',
       createdBy: 'Lê Thị Hoa',
       createdAt: new Date().toISOString()
     }

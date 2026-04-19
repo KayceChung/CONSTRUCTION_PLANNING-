@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { v4 as uuidv4 } from 'uuid'
 import { useCustomerStore } from '../stores/useCustomerStore'
 import { useProjectStore } from '../stores/useProjectStore'
 import { useAuthStore } from '../stores/useAuthStore'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
+import NewCustomerModal from '../components/modals/NewCustomerModal'
 
 const sortOptions = [
   { value: 'name', label: 'Tên A-Z' },
@@ -16,14 +18,47 @@ export default function CustomerList({ showToast }: { showToast: (message: strin
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
   const customers = useCustomerStore((state) => state.customers)
+  const addCustomer = useCustomerStore((state) => state.addCustomer)
   const projects = useProjectStore((state) => state.projects)
 
   const [searchText, setSearchText] = useState('')
   const [debtFilter, setDebtFilter] = useState<'all' | 'debt' | 'clear'>('all')
   const [sortKey, setSortKey] = useState('name')
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
-  const rows = useMemo(() => {
-    return customers
+  const handleAddCustomer = async (customerData: {
+    fullName: string
+    phone: string
+    phone2?: string
+    email?: string
+    address?: string
+    note?: string
+  }) => {
+    try {
+      const newCustomer = {
+        id: uuidv4(),
+        fullName: customerData.fullName,
+        phone: customerData.phone,
+        phone2: customerData.phone2,
+        email: customerData.email,
+        address: customerData.address,
+        note: customerData.note,
+        status: 'lead' as const,
+        projectIds: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+      await addCustomer(newCustomer)
+      setIsModalOpen(false)
+      showToast(`Đã thêm khách hàng "${customerData.fullName}" thành công`, 'success')
+    } catch (error) {
+      console.error('Error adding customer:', error)
+      showToast('Lỗi khi thêm khách hàng', 'error')
+    }
+  }
+
+  const rows = useMemo(() => 
+    customers
       .map((customer) => {
         const customerProjects = projects.filter((project) => project.customerId === customer.id)
         const totalValue = customerProjects.reduce((sum, project) => sum + project.contractValue, 0)
@@ -47,8 +82,9 @@ export default function CustomerList({ showToast }: { showToast: (message: strin
         if (sortKey === 'projectCount') return b.customerProjects.length - a.customerProjects.length
         if (sortKey === 'totalValue') return b.totalValue - a.totalValue
         return 0
-      })
-  }, [customers, projects, searchText, debtFilter, sortKey])
+      }),
+    [customers, projects, searchText, debtFilter, sortKey]
+  )
 
   return (
     <div className="space-y-6">
@@ -58,6 +94,13 @@ export default function CustomerList({ showToast }: { showToast: (message: strin
           <h1 className="mt-2 text-3xl font-semibold text-slate-900">Quản lý khách hàng</h1>
         </div>
         <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center justify-center rounded-2xl bg-brand-500 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600"
+          >
+            + Thêm khách hàng
+          </button>
           <Link to="/projects/new" className="inline-flex items-center justify-center rounded-2xl bg-brand-900 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700">
             Thêm dự án mới
           </Link>
@@ -97,6 +140,7 @@ export default function CustomerList({ showToast }: { showToast: (message: strin
                   <tr>
                     <th className="px-4 py-3 font-semibold">Tên KH</th>
                     <th className="px-4 py-3 font-semibold">SĐT</th>
+                    <th className="px-4 py-3 font-semibold">Trạng thái</th>
                     <th className="px-4 py-3 font-semibold">Số dự án</th>
                     <th className="px-4 py-3 font-semibold">Tổng giá trị</th>
                     <th className="px-4 py-3 font-semibold">Còn nợ</th>
@@ -109,6 +153,22 @@ export default function CustomerList({ showToast }: { showToast: (message: strin
                     <tr key={customer.id} className="border-t border-slate-200">
                       <td className="px-4 py-4 font-semibold text-slate-900">{customer.fullName}</td>
                       <td className="px-4 py-4">{customer.phone}</td>
+                      <td className="px-4 py-4">
+                        <Badge 
+                          label={
+                            customer.status === 'lead' ? 'Tiềm năng' :
+                            customer.status === 'nurturing' ? 'Chăm sóc' :
+                            customer.status === 'contracted' ? 'Đã ký' :
+                            'Không hoạt động'
+                          }
+                          type={
+                            customer.status === 'lead' ? 'primary' :
+                            customer.status === 'nurturing' ? 'in_progress' :
+                            customer.status === 'contracted' ? 'success' :
+                            'secondary'
+                          }
+                        />
+                      </td>
                       <td className="px-4 py-4">{customerProjects.length}</td>
                       <td className="px-4 py-4">{new Intl.NumberFormat('vi-VN').format(totalValue)} đ</td>
                       <td className="px-4 py-4">{hasDebt ? '⚠️ Còn nợ' : 'Không nợ'}</td>
@@ -145,6 +205,8 @@ export default function CustomerList({ showToast }: { showToast: (message: strin
           </div>
         </div>
       </div>
+
+      <NewCustomerModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleAddCustomer} />
     </div>
   )
 }

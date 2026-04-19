@@ -1,49 +1,56 @@
 import { create } from 'zustand'
-import { ContactLog, Customer } from '../types'
-import { createSeedContactLogs, createSeedCustomers, loadContactLogs, loadCustomers, saveContactLogs, saveCustomers } from '../utils/storage'
+import { InteractionLog, Customer } from '../types'
+import { loadInteractionLogs, loadCustomers, saveInteractionLogs, saveCustomers } from '../utils/storage'
 
 interface CustomerState {
   customers: Customer[]
-  contactLogs: ContactLog[]
+  interactionLogs: InteractionLog[]
   initCustomers: () => void
   addCustomer: (customer: Customer) => void
   updateCustomer: (customerId: string, changes: Partial<Customer>) => void
   deleteCustomer: (customerId: string) => void
-  addContactLog: (log: ContactLog) => void
+  addInteractionLog: (log: InteractionLog) => void
+  updateCustomerStatus: (customerId: string, status: Customer['status']) => void
 }
 
 export const useCustomerStore = create<CustomerState>((set, get) => ({
   customers: [],
-  contactLogs: [],
-  initCustomers: () => {
-    const savedCustomers = loadCustomers()
-    const savedContactLogs = loadContactLogs()
-    const customers = savedCustomers.length > 0 ? savedCustomers : createSeedCustomers()
-    const contactLogs = savedContactLogs.length > 0 ? savedContactLogs : createSeedContactLogs()
-    saveCustomers(customers)
-    saveContactLogs(contactLogs)
-    set({ customers, contactLogs })
+  interactionLogs: [],
+  initCustomers: async () => {
+    try {
+      const [customers, interactionLogs] = await Promise.all([loadCustomers(), loadInteractionLogs()])
+      set({ customers, interactionLogs })
+    } catch (error) {
+      console.error('Error initializing customers:', error)
+    }
   },
-  addCustomer: (customer) => {
+  addCustomer: async (customer) => {
     const next = [...get().customers, customer]
-    saveCustomers(next)
+    await saveCustomers(next)
     set({ customers: next })
   },
-  updateCustomer: (customerId, changes) => {
+  updateCustomer: async (customerId, changes) => {
     const next = get().customers.map((customer) =>
-      customer.id === customerId ? { ...customer, ...changes } : customer
+      customer.id === customerId ? { ...customer, ...changes, updatedAt: new Date().toISOString() } : customer
     )
-    saveCustomers(next)
+    await saveCustomers(next)
     set({ customers: next })
   },
-  deleteCustomer: (customerId) => {
+  deleteCustomer: async (customerId) => {
     const next = get().customers.filter((customer) => customer.id !== customerId)
-    saveCustomers(next)
+    await saveCustomers(next)
     set({ customers: next })
   },
-  addContactLog: (log) => {
-    const nextLogs = [...get().contactLogs, log]
-    saveContactLogs(nextLogs)
-    set({ contactLogs: nextLogs })
+  addInteractionLog: async (log) => {
+    const nextLogs = [...get().interactionLogs, log]
+    await saveInteractionLogs(nextLogs)
+    set({ interactionLogs: nextLogs })
+  },
+  updateCustomerStatus: async (customerId, status) => {
+    const next = get().customers.map((customer) =>
+      customer.id === customerId ? { ...customer, status, updatedAt: new Date().toISOString() } : customer
+    )
+    await saveCustomers(next)
+    set({ customers: next })
   }
 }))

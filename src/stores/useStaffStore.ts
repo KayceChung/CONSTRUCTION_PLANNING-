@@ -1,24 +1,26 @@
 import { create } from 'zustand'
 import { Staff } from '../types'
-import { createSeedStaff, loadStaff, saveStaff } from '../utils/storage'
+import { loadStaff, updateStaffRecord } from '../utils/storage'
 
 interface StaffState {
   staff: Staff[]
-  initStaff: () => void
-  updateStaff: (staffId: string, changes: Partial<Staff>) => void
+  initStaff: () => Promise<void>
+  updateStaff: (staffId: string, changes: Partial<Staff>) => Promise<void>
 }
 
 export const useStaffStore = create<StaffState>((set, get) => ({
   staff: [],
-  initStaff: () => {
-    const savedStaff = loadStaff()
-    const staff = savedStaff.length > 0 ? savedStaff : createSeedStaff()
-    saveStaff(staff)
-    set({ staff })
+  initStaff: async () => {
+    try {
+      const staff = await loadStaff()
+      set({ staff })
+    } catch (error) {
+      console.error('Error initializing staff:', error)
+    }
   },
-  updateStaff: (staffId, changes) => {
+  updateStaff: async (staffId, changes) => {
+    await updateStaffRecord(staffId, changes)
     const next = get().staff.map((member) => (member.id === staffId ? { ...member, ...changes } : member))
-    saveStaff(next)
     set({ staff: next })
   }
 }))

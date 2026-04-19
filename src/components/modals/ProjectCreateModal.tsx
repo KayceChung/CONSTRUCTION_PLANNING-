@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { v4 as uuidv4 } from 'uuid'
 import { useProjectStore } from '../../stores/useProjectStore'
 import { useProjectTypeStore } from '../../stores/useProjectTypeStore'
 import { useCustomerStore } from '../../stores/useCustomerStore'
@@ -28,6 +29,13 @@ interface FormData {
 }
 
 export default function ProjectCreateModal({ isOpen, onClose, showToast }: ProjectCreateModalProps) {
+
+    const getErrorMessage = (error: unknown) => {
+      if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+        return error.message
+      }
+      return 'Có lỗi khi lưu dự án lên Supabase'
+    }
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
   const addProject = useProjectStore((state) => state.addProject)
@@ -151,7 +159,7 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
     try {
       // Create the project
       const newProject: Project = {
-        id: `proj_${Date.now()}`,
+        id: uuidv4(),
         name: formData.projectName,
         location: formData.location,
         client: customers.find((c) => c.id === formData.customerId)?.fullName || '',
@@ -188,7 +196,7 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
         taskEnd.setDate(taskEnd.getDate() + estimatedDays - 1)
 
         tasksToCreate.push({
-          id: `task_${Date.now()}_${Math.random()}`,
+          id: uuidv4(),
           title: template.title,
           description: '',
           status: 'todo',
@@ -217,7 +225,7 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
           const taskEnd = new Date(taskStart)
           taskEnd.setDate(taskEnd.getDate() + 1 - 1)
           tasksToCreate.push({
-            id: `task_${Date.now()}_${Math.random()}`,
+            id: uuidv4(),
             title: customTask.trim(),
             description: '',
             status: 'todo',
@@ -242,7 +250,7 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
       newProject.tasks = tasksToCreate
 
       // Save the project
-      addProject(newProject)
+      await addProject(newProject)
 
       showToast('Dự án đã được tạo thành công', 'success')
 
@@ -265,12 +273,12 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
             zaloLinkedAt: new Date().toISOString(),
             zaloStatus: 'linked' as const,
           }
-          useProjectStore.getState().updateProject(newProject.id, updateData)
+          await useProjectStore.getState().updateProject(newProject.id, updateData)
           setZaloStatus('linked')
           showToast(`✓ Đã tạo nhóm Zalo: "${result.zaloGroupName}"`, 'success')
         } else {
           // Mark as failed but don't block project creation
-          useProjectStore.getState().updateProject(newProject.id, { zaloStatus: 'failed' as const })
+          await useProjectStore.getState().updateProject(newProject.id, { zaloStatus: 'failed' as const })
           setZaloStatus('failed')
           showToast(
             `⚠ Không thể tạo nhóm Zalo. ${result.error || 'Bạn có thể thử lại sau trong cài đặt dự án.'}`,
@@ -285,7 +293,7 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
       navigate(`/projects/${newProject.id}`)
     } catch (error) {
       console.error('Error creating project:', error)
-      showToast('Có lỗi khi tạo dự án', 'error')
+      showToast(getErrorMessage(error), 'error')
     }
   }
 

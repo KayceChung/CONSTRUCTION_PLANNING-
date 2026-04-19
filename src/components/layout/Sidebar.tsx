@@ -1,24 +1,34 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { User } from '../../types'
-import { Home, LayoutGrid, LogOut, ListChecks, Settings } from 'lucide-react'
+import { Home, LayoutGrid, LogOut, ListChecks, Settings, Users } from 'lucide-react'
 import Button from '../ui/Button'
+import { useStaffStore } from '../../stores/useStaffStore'
 
 interface SidebarProps {
   user: User
   onLogout: () => void
 }
 
+interface NavItem {
+  label: string
+  to: string
+  icon: typeof Home
+  badge?: string
+}
+
 export default function Sidebar({ user, onLogout }: SidebarProps) {
   const [logoError, setLogoError] = useState(false)
   const location = useLocation()
+  const pendingCount = useStaffStore((state) => state.staff.filter((item) => !item.isActive).length)
   const logoUrl = `${(import.meta as any).env?.BASE_URL || '/'}logo.png`
-  const navItems = [
+  const navItems: NavItem[] = [
     { label: 'Tổng quan', to: '/', icon: Home },
     { label: 'Dự án', to: '/projects', icon: LayoutGrid }
   ]
 
   if (user.role === 'manager') {
+    navItems.push({ label: 'Nhân sự', to: '/personnel', icon: Users, badge: pendingCount > 0 ? String(pendingCount) : undefined })
     navItems.push({ label: 'Khách hàng', to: '/customers', icon: ListChecks })
     navItems.push({ label: 'Cài đặt', to: '/settings', icon: Settings })
   }
@@ -48,7 +58,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       <nav className="space-y-2">
         {navItems.map((item) => {
           const Icon = item.icon
-          const active = location.pathname === item.to
+          const active = location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
           return (
             <Link
               key={item.to}
@@ -58,7 +68,8 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               }`}
             >
               <Icon size={18} />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.badge ? <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${active ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>{item.badge}</span> : null}
             </Link>
           )
         })}
@@ -68,7 +79,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         <div className="rounded-3xl bg-slate-50 p-4 text-sm text-slate-700">
           <p className="font-semibold">Thông tin tài khoản</p>
           <p>{user.name}</p>
-          <p className="mt-1 text-xs text-slate-500">Dữ liệu demo lưu trên trình duyệt</p>
+          <p className="mt-1 text-xs text-slate-500">Dữ liệu nhân sự và dự án đang đồng bộ theo Supabase</p>
         </div>
         <Button type="button" variant="secondary" className="w-full justify-center" onClick={onLogout}>
           <LogOut size={16} className="mr-2" /> Đăng xuất

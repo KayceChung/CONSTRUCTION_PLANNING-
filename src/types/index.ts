@@ -49,9 +49,27 @@ export interface Customer {
   phone2?: string
   email?: string
   address?: string
+  source?: string                     // kênh biết đến: giới thiệu, facebook, zalo, khác
+  status?: 'lead' | 'nurturing' | 'contracted' | 'inactive'  // trạng thái trong pipeline
   note?: string
+  notes?: string
+  zaloThreadId?: string               // thread ID cá nhân trên Zalo
   createdAt: string
+  updatedAt?: string
   projectIds: string[]
+}
+
+export interface InteractionLog {
+  id: string
+  customerId: string
+  type: 'call' | 'meet' | 'zalo' | 'email' | 'note' | 'site_visit'
+  date: string                        // ngày ghi nhận (YYYY-MM-DD)
+  time?: string                       // giờ (HH:mm)
+  summary: string                     // nội dung trao đổi
+  nextAction?: string                 // việc cần làm tiếp theo
+  nextActionDate?: string             // deadline việc tiếp theo (YYYY-MM-DD)
+  createdBy: string
+  createdAt: string
 }
 
 export interface ContactLog {
@@ -122,9 +140,38 @@ export interface Staff {
   role: Role
   assignedProjects: string[]
   avatar?: string
-  pinHash: string
+  pinHash?: string
   isActive: boolean
   createdAt: string
+}
+
+export type PersonnelStatus = 'pending' | 'active' | 'paused' | 'former' | 'rejected'
+
+export interface PersonnelRoleChange {
+  id: string
+  changedAt: string
+  oldPosition: string
+  newPosition: string
+  changedBy: string
+}
+
+export interface Personnel {
+  id: string
+  fullName: string
+  phone: string
+  position: string
+  startDate?: string
+  payRate?: string
+  notes?: string
+  projectIds: string[]
+  status: PersonnelStatus
+  createdAt: string
+  updatedAt: string
+  approvedAt?: string
+  approvedBy?: string
+  rejectedAt?: string
+  rejectedBy?: string
+  roleChanges: PersonnelRoleChange[]
 }
 
 export interface User {

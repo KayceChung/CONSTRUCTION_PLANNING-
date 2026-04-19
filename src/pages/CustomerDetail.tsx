@@ -1,17 +1,21 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { v4 as uuidv4 } from 'uuid'
 import { useCustomerStore } from '../stores/useCustomerStore'
 import { useProjectStore } from '../stores/useProjectStore'
 import { useAuthStore } from '../stores/useAuthStore'
+import { Customer } from '../types'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import { formatDate } from '../utils/progress'
 
-const contactMethods = [
-  { value: 'phone', label: 'Gọi điện' },
+const interactionTypes = [
+  { value: 'call', label: 'Gọi điện' },
   { value: 'zalo', label: 'Zalo' },
-  { value: 'meeting', label: 'Gặp trực tiếp' },
-  { value: 'email', label: 'Email' }
+  { value: 'meet', label: 'Gặp trực tiếp' },
+  { value: 'email', label: 'Email' },
+  { value: 'note', label: 'Ghi chú' },
+  { value: 'site_visit', label: 'Thăm công trường' }
 ]
 
 export default function CustomerDetail({ showToast }: { showToast: (message: string, type?: 'success' | 'error' | 'info') => void }) {
@@ -19,18 +23,21 @@ export default function CustomerDetail({ showToast }: { showToast: (message: str
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
   const customers = useCustomerStore((state) => state.customers)
-  const contactLogs = useCustomerStore((state) => state.contactLogs)
-  const addContactLog = useCustomerStore((state) => state.addContactLog)
+  const interactionLogs = useCustomerStore((state) => state.interactionLogs)
+  const addInteractionLog = useCustomerStore((state) => state.addInteractionLog)
   const projects = useProjectStore((state) => state.projects)
 
   const customer = useMemo(() => customers.find((item) => item.id === params.customerId) || null, [customers, params.customerId])
   const customerProjects = useMemo(() => projects.filter((project) => project.customerId === params.customerId), [projects, params.customerId])
-  const customerLogs = useMemo(() => contactLogs.filter((log) => log.customerId === params.customerId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [contactLogs, params.customerId])
+  const customerLogs = useMemo(() => interactionLogs.filter((log) => log.customerId === params.customerId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [interactionLogs, params.customerId])
 
   const [tab, setTab] = useState<'projects' | 'finance' | 'history'>('projects')
   const [newLogDate, setNewLogDate] = useState(new Date().toISOString().slice(0, 10))
-  const [newLogMethod, setNewLogMethod] = useState<'phone' | 'zalo' | 'meeting' | 'email'>('phone')
-  const [newLogContent, setNewLogContent] = useState('')
+  const [newLogTime, setNewLogTime] = useState('')
+  const [newLogType, setNewLogType] = useState<'call' | 'meet' | 'zalo' | 'email' | 'note' | 'site_visit'>('call')
+  const [newLogSummary, setNewLogSummary] = useState('')
+  const [newLogNextAction, setNewLogNextAction] = useState('')
+  const [newLogNextActionDate, setNewLogNextActionDate] = useState('')
 
   if (!customer) {
     return (
@@ -50,21 +57,27 @@ export default function CustomerDetail({ showToast }: { showToast: (message: str
 
   const handleAddLog = () => {
     if (!user) return
-    if (!newLogContent) {
-      showToast('Vui lòng nhập nội dung liên hệ', 'error')
+    if (!newLogSummary) {
+      showToast('Vui lòng nhập nội dung trao đổi', 'error')
       return
     }
-    addContactLog({
-      id: `log-${Date.now()}`,
+    addInteractionLog({
+      id: uuidv4(),
       customerId: customer.id,
+      type: newLogType,
       date: newLogDate,
-      method: newLogMethod,
-      content: newLogContent,
+      time: newLogTime || undefined,
+      summary: newLogSummary,
+      nextAction: newLogNextAction || undefined,
+      nextActionDate: newLogNextActionDate || undefined,
       createdBy: user.name,
       createdAt: new Date().toISOString()
     })
-    setNewLogContent('')
-    showToast('Đã lưu lịch sử liên hệ', 'success')
+    setNewLogSummary('')
+    setNewLogNextAction('')
+    setNewLogNextActionDate('')
+    setNewLogTime('')
+    showToast('Đã lưu lịch sử tương tác', 'success')
   }
 
   return (
@@ -93,6 +106,25 @@ export default function CustomerDetail({ showToast }: { showToast: (message: str
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
             <p className="text-sm text-slate-600">Địa chỉ</p>
             <p className="mt-2 text-lg font-semibold text-slate-900">{customer.address || '-'}</p>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <p className="text-sm text-slate-600">Trạng thái</p>
+            <div className="mt-2">
+              <select
+                className="rounded-3xl border border-slate-200 bg-white px-3 py-1 text-sm font-semibold"
+                value={customer.status || 'lead'}
+                onChange={(event) => {
+                  const newStatus = event.target.value as Customer['status']
+                  useCustomerStore.getState().updateCustomerStatus(customer.id, newStatus)
+                  showToast('Đã cập nhật trạng thái khách hàng', 'success')
+                }}
+              >
+                <option value="lead">Tiềm năng</option>
+                <option value="nurturing">Chăm sóc</option>
+                <option value="contracted">Đã ký</option>
+                <option value="inactive">Không hoạt động</option>
+              </select>
+            </div>
           </div>
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
             <p className="text-sm text-slate-600">Dự án</p>
@@ -203,9 +235,9 @@ export default function CustomerDetail({ showToast }: { showToast: (message: str
             <div className="space-y-6">
               <div className="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-6">
                 <p className="text-sm font-semibold text-slate-900">Ghi nhận liên hệ mới</p>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700">Ngày liên hệ</label>
+                    <label className="block text-sm font-semibold text-slate-700">Ngày</label>
                     <input
                       type="date"
                       className="w-full rounded-3xl border border-slate-200 px-4 py-3"
@@ -214,43 +246,95 @@ export default function CustomerDetail({ showToast }: { showToast: (message: str
                     />
                   </div>
                   <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">Giờ</label>
+                    <input
+                      type="time"
+                      className="w-full rounded-3xl border border-slate-200 px-4 py-3"
+                      value={newLogTime}
+                      onChange={(event) => setNewLogTime(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <label className="block text-sm font-semibold text-slate-700">Hình thức</label>
                     <select
                       className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3"
-                      value={newLogMethod}
-                      onChange={(event) => setNewLogMethod(event.target.value as any)}
+                      value={newLogType}
+                      onChange={(event) => setNewLogType(event.target.value as any)}
                     >
-                      {contactMethods.map((method) => (
-                        <option key={method.value} value={method.value}>{method.label}</option>
+                      {interactionTypes.map((type) => (
+                        <option key={type.value} value={type.value}>{type.label}</option>
                       ))}
                     </select>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700">Nội dung</label>
+                  <label className="block text-sm font-semibold text-slate-700">Nội dung trao đổi</label>
                   <textarea
                     className="min-h-[120px] w-full rounded-3xl border border-slate-200 px-4 py-3"
-                    value={newLogContent}
-                    onChange={(event) => setNewLogContent(event.target.value)}
-                    placeholder="VD: Gọi hỏi tiến độ, khách cần chỉnh sửa bản vẽ 3 lần..."
+                    value={newLogSummary}
+                    onChange={(event) => setNewLogSummary(event.target.value)}
+                    placeholder="VD: Thảo luận về tiến độ thi công, khách hàng đồng ý với bản vẽ..."
                   />
                 </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">Việc cần làm tiếp theo</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-3xl border border-slate-200 px-4 py-3"
+                      value={newLogNextAction}
+                      onChange={(event) => setNewLogNextAction(event.target.value)}
+                      placeholder="VD: Gửi bản vẽ chỉnh sửa"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">Deadline</label>
+                    <input
+                      type="date"
+                      className="w-full rounded-3xl border border-slate-200 px-4 py-3"
+                      value={newLogNextActionDate}
+                      onChange={(event) => setNewLogNextActionDate(event.target.value)}
+                    />
+                  </div>
+                </div>
                 <div className="flex justify-end">
-                  <Button type="button" onClick={handleAddLog}>Lưu liên hệ</Button>
+                  <Button type="button" onClick={handleAddLog}>Lưu tương tác</Button>
                 </div>
               </div>
               <div className="rounded-3xl border border-slate-200 bg-white p-6">
                 <div className="space-y-4">
                   {customerLogs.length === 0 ? (
-                    <p className="text-sm text-slate-600">Chưa có lịch sử liên hệ nào.</p>
+                    <p className="text-sm text-slate-600">Chưa có lịch sử tương tác nào.</p>
                   ) : (
                     customerLogs.map((log) => (
                       <div key={log.id} className="rounded-3xl border border-slate-200 p-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                          <p className="font-semibold text-slate-900">{formatDate(log.date)}</p>
-                          <Badge label={log.method === 'phone' ? 'Gọi điện' : log.method === 'zalo' ? 'Zalo' : log.method === 'meeting' ? 'Gặp trực tiếp' : 'Email'} type="secondary" />
+                          <p className="font-semibold text-slate-900">
+                            {formatDate(log.date)}
+                            {log.time && ` ${log.time}`}
+                          </p>
+                          <Badge 
+                            label={
+                              log.type === 'call' ? 'Gọi điện' :
+                              log.type === 'zalo' ? 'Zalo' :
+                              log.type === 'meet' ? 'Gặp trực tiếp' :
+                              log.type === 'email' ? 'Email' :
+                              log.type === 'note' ? 'Ghi chú' :
+                              'Thăm công trường'
+                            } 
+                            type="secondary" 
+                          />
                         </div>
-                        <p className="mt-2 text-sm text-slate-600">{log.content}</p>
+                        <p className="mt-2 text-sm text-slate-600">{log.summary}</p>
+                        {log.nextAction && (
+                          <div className="mt-3 rounded-lg bg-blue-50 p-3">
+                            <p className="text-sm font-medium text-blue-900">Việc cần làm tiếp theo:</p>
+                            <p className="text-sm text-blue-800">{log.nextAction}</p>
+                            {log.nextActionDate && (
+                              <p className="text-xs text-blue-600 mt-1">Deadline: {formatDate(log.nextActionDate)}</p>
+                            )}
+                          </div>
+                        )}
                         <p className="mt-3 text-xs text-slate-500">Ghi bởi {log.createdBy}</p>
                       </div>
                     ))
