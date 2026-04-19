@@ -55,6 +55,11 @@ export default function PersonnelList({ showToast }: PersonnelListProps) {
     return names.length > 0 ? names.join(', ') : 'Chưa phân công'
   }
 
+  const getPhoneSummary = (member: (typeof staff)[number]) => {
+    const extraPhones = [member.phone1, member.phone2].filter(Boolean)
+    return extraPhones.length > 0 ? `${member.phone} / ${extraPhones.join(' / ')}` : member.phone
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -95,7 +100,7 @@ export default function PersonnelList({ showToast }: PersonnelListProps) {
                     <tr key={member.id} className="border-t border-slate-200">
                       <td className="px-4 py-4 font-semibold text-slate-900">{member.name}</td>
                       <td className="px-4 py-4">{member.role === 'manager' ? 'Quản lý' : 'Giám sát'}</td>
-                      <td className="px-4 py-4">{member.phone}</td>
+                      <td className="px-4 py-4">{getPhoneSummary(member)}</td>
                       <td className="px-4 py-4 text-sm text-slate-600">{getProjectNames(member)}</td>
                       <td className="px-4 py-4">
                         <Badge label={statusLabel[member.isActive ? 'active' : 'pending']} type={badgeType[member.isActive ? 'active' : 'pending']} />

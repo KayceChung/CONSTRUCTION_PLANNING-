@@ -41,6 +41,8 @@ export default function PersonnelDetail({ showToast }: PersonnelDetailProps) {
 
   const [role, setRole] = useState<'manager' | 'supervisor'>('supervisor')
   const [phone, setPhone] = useState('')
+  const [phone1, setPhone1] = useState('')
+  const [phone2, setPhone2] = useState('')
   const [status, setStatus] = useState<PersonnelStatus>('pending')
   const [selectedProjects, setSelectedProjects] = useState<string[]>([])
 
@@ -48,6 +50,8 @@ export default function PersonnelDetail({ showToast }: PersonnelDetailProps) {
     if (!member) return
     setRole(member.role)
     setPhone(member.phone)
+    setPhone1(member.phone1 || '')
+    setPhone2(member.phone2 || '')
     setStatus(member.isActive ? 'active' : 'pending')
     setSelectedProjects(assignedProjectIds)
   }, [assignedProjectIds, member])
@@ -67,6 +71,8 @@ export default function PersonnelDetail({ showToast }: PersonnelDetailProps) {
     try {
       await updateStaff(member.id, {
         phone: phone.trim(),
+        phone1: phone1.trim() || undefined,
+        phone2: phone2.trim() || undefined,
         isActive: status === 'active',
       })
       showToast('Đã cập nhật thông tin nhân sự', 'success')
@@ -137,6 +143,14 @@ export default function PersonnelDetail({ showToast }: PersonnelDetailProps) {
               <div>
                 <label className="block text-sm font-semibold text-slate-700">Số điện thoại</label>
                 <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3" value={phone} onChange={(event) => setPhone(event.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700">Số điện thoại 1</label>
+                <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3" value={phone1} onChange={(event) => setPhone1(event.target.value)} placeholder="Số điện thoại phụ 1" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700">Số điện thoại 2</label>
+                <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3" value={phone2} onChange={(event) => setPhone2(event.target.value)} placeholder="Số điện thoại phụ 2" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700">Email</label>

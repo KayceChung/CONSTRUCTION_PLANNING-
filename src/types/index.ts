@@ -136,6 +136,8 @@ export interface Staff {
   id: string
   name: string
   phone: string
+  phone1?: string
+  phone2?: string
   email?: string
   role: Role
   assignedProjects: string[]

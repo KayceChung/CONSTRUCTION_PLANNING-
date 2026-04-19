@@ -150,6 +150,8 @@ function mapStaffFromRow(row: any): Staff {
     id: row.id,
     name: row.name || row.full_name || row.email || '',
     phone: row.phone || '',
+    phone1: row.phone1 || undefined,
+    phone2: row.phone2 || undefined,
     email: row.email || undefined,
     role: row.role,
     assignedProjects: [],
@@ -328,6 +330,8 @@ export async function saveStaff(staff: Staff[]): Promise<void> {
         id: member.id,
         name: member.name,
         phone: member.phone,
+        phone1: member.phone1 || null,
+        phone2: member.phone2 || null,
         email: member.email || null,
         role: member.role,
         avatar: member.avatar || null,
@@ -344,6 +348,8 @@ export async function updateStaffRecord(staffId: string, changes: Partial<Staff>
 
   if (changes.name !== undefined) updateRow.name = changes.name
   if (changes.phone !== undefined) updateRow.phone = changes.phone
+  if (changes.phone1 !== undefined) updateRow.phone1 = changes.phone1 || null
+  if (changes.phone2 !== undefined) updateRow.phone2 = changes.phone2 || null
   if (changes.email !== undefined) updateRow.email = changes.email || null
   if (changes.role !== undefined) updateRow.role = changes.role
   if (changes.avatar !== undefined) updateRow.avatar = changes.avatar || null
