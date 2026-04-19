@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:gh-pages": "tsc && vite build --base=/CONSTRUCTION_PLANNING-/",
     "preview": "vite preview",
-    "deploy": "gh-pages -d dist",
+    "deploy": "npm run build:gh-pages && gh-pages -d dist",
     "lint": "echo \"No lint configured\""
   },
   "dependencies": {
