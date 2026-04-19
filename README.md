@@ -408,7 +408,7 @@ Payload sẽ gồm 3 khối chính: `project`, `customer`, và `supervisors`.
 
 Mỗi nhân sự được gán sẽ có thêm `userId` và `user_id` lấy từ `public.staff.user_id` để dùng cho Zalo group. Ngoài ra `project.assignedUserIds` chỉ chứa các `user_id` hợp lệ để đưa thẳng sang n8n.
 
-### 8. Bắn webhook backend khi thêm nhân sự mới hoặc cập nhật `phone` / `phone1` / `phone2`
+### 8. Bắn webhook backend khi thêm nhân sự mới có `phone2` hoặc cập nhật `phone2`
 ```sql
 alter table public.staff add column if not exists phone1 text;
 alter table public.staff add column if not exists phone2 text;
@@ -420,9 +420,12 @@ security definer
 set search_path = public
 as $$
 begin
+  if tg_op = 'INSERT'
+    and nullif(btrim(coalesce(new.phone2, '')), '') is null then
+    return new;
+  end if;
+
   if tg_op = 'UPDATE'
-    and old.phone is not distinct from new.phone
-    and old.phone1 is not distinct from new.phone1
     and old.phone2 is not distinct from new.phone2 then
     return new;
   end if;
@@ -432,7 +435,7 @@ begin
       url := 'https://yi7a1c8g.rpcld.co/webhook/df2a6ad6-afad-45d8-ba3c-f7cafaaa4060',
       headers := '{"Content-Type":"application/json"}'::jsonb,
       body := jsonb_build_object(
-        'event', case when tg_op = 'INSERT' then 'staff_created' else 'staff_phone_updated' end,
+        'event', case when tg_op = 'INSERT' then 'staff_created' else 'staff_phone2_updated' end,
         'operation', tg_op,
         'timestamp', to_jsonb(timezone('utc', now())),
         'staff', jsonb_build_object(
@@ -444,7 +447,9 @@ begin
           'fullName', new.full_name,
           'phone', new.phone,
           'phone1', new.phone1,
+          'whatsapp', new.phone1,
           'phone2', new.phone2,
+          'zalo', new.phone2,
           'role', new.role,
           'isActive', new.is_active,
           'isAdmin', new.is_admin,
@@ -454,9 +459,8 @@ begin
         ),
         'changes', case
           when tg_op = 'UPDATE' then jsonb_build_object(
-            'phone', jsonb_build_object('old', old.phone, 'new', new.phone),
-            'phone1', jsonb_build_object('old', old.phone1, 'new', new.phone1),
-            'phone2', jsonb_build_object('old', old.phone2, 'new', new.phone2)
+            'phone2', jsonb_build_object('old', old.phone2, 'new', new.phone2),
+            'zalo', jsonb_build_object('old', old.phone2, 'new', new.phone2)
           )
           else null
         end
@@ -473,8 +477,10 @@ $$;
 
 drop trigger if exists on_staff_phone_changed_notify_webhook on public.staff;
 create trigger on_staff_phone_changed_notify_webhook
-after insert or update of phone, phone1, phone2 on public.staff
+after insert or update of phone2 on public.staff
 for each row execute function public.notify_staff_phone_changed();
 ```
 
-Webhook này sẽ bắn JSON khi có staff mới và khi `phone`, `phone1` hoặc `phone2` thay đổi trong `public.staff`.
+Quy ước hiển thị trong app: `phone` = Số ĐTH, `phone1` = WhatsApp, `phone2` = Zalo.
+
+Webhook này chỉ bắn JSON khi có staff mới với `phone2` có dữ liệu hoặc khi `phone2` thay đổi trong `public.staff`.

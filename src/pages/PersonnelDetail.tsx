@@ -141,16 +141,16 @@ export default function PersonnelDetail({ showToast }: PersonnelDetailProps) {
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-sm font-semibold text-slate-700">Số điện thoại</label>
+                <label className="block text-sm font-semibold text-slate-700">Số ĐTH</label>
                 <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3" value={phone} onChange={(event) => setPhone(event.target.value)} />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700">Số điện thoại 1</label>
-                <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3" value={phone1} onChange={(event) => setPhone1(event.target.value)} placeholder="Số điện thoại phụ 1" />
+                <label className="block text-sm font-semibold text-slate-700">WhatsApp</label>
+                <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3" value={phone1} onChange={(event) => setPhone1(event.target.value)} placeholder="Số WhatsApp" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700">Số điện thoại 2</label>
-                <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3" value={phone2} onChange={(event) => setPhone2(event.target.value)} placeholder="Số điện thoại phụ 2" />
+                <label className="block text-sm font-semibold text-slate-700">Zalo</label>
+                <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3" value={phone2} onChange={(event) => setPhone2(event.target.value)} placeholder="Số Zalo" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700">Email</label>

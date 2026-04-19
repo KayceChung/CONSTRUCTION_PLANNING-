@@ -413,9 +413,12 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+    IF TG_OP = 'INSERT'
+        AND NULLIF(BTRIM(COALESCE(NEW.phone2, '')), '') IS NULL THEN
+        RETURN NEW;
+    END IF;
+
     IF TG_OP = 'UPDATE'
-        AND OLD.phone IS NOT DISTINCT FROM NEW.phone
-        AND OLD.phone1 IS NOT DISTINCT FROM NEW.phone1
         AND OLD.phone2 IS NOT DISTINCT FROM NEW.phone2 THEN
         RETURN NEW;
     END IF;
@@ -425,7 +428,7 @@ BEGIN
             url := 'https://yi7a1c8g.rpcld.co/webhook/df2a6ad6-afad-45d8-ba3c-f7cafaaa4060',
             headers := '{"Content-Type":"application/json"}'::jsonb,
             body := jsonb_build_object(
-                'event', CASE WHEN TG_OP = 'INSERT' THEN 'staff_created' ELSE 'staff_phone_updated' END,
+                'event', CASE WHEN TG_OP = 'INSERT' THEN 'staff_created' ELSE 'staff_phone2_updated' END,
                 'operation', TG_OP,
                 'timestamp', to_jsonb(timezone('utc', now())),
                 'staff', jsonb_build_object(
@@ -437,7 +440,9 @@ BEGIN
                     'fullName', NEW.full_name,
                     'phone', NEW.phone,
                     'phone1', NEW.phone1,
+                    'whatsapp', NEW.phone1,
                     'phone2', NEW.phone2,
+                    'zalo', NEW.phone2,
                     'role', NEW.role,
                     'isActive', NEW.is_active,
                     'isAdmin', NEW.is_admin,
@@ -447,9 +452,8 @@ BEGIN
                 ),
                 'changes', CASE
                     WHEN TG_OP = 'UPDATE' THEN jsonb_build_object(
-                        'phone', jsonb_build_object('old', OLD.phone, 'new', NEW.phone),
-                        'phone1', jsonb_build_object('old', OLD.phone1, 'new', NEW.phone1),
-                        'phone2', jsonb_build_object('old', OLD.phone2, 'new', NEW.phone2)
+                        'phone2', jsonb_build_object('old', OLD.phone2, 'new', NEW.phone2),
+                        'zalo', jsonb_build_object('old', OLD.phone2, 'new', NEW.phone2)
                     )
                     ELSE NULL
                 END
@@ -525,7 +529,7 @@ CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects FOR EACH ROW
 CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER on_project_created_notify_webhook AFTER INSERT ON projects FOR EACH ROW EXECUTE FUNCTION public.notify_project_created();
 CREATE TRIGGER on_customer_created_notify_webhook AFTER INSERT ON customers FOR EACH ROW EXECUTE FUNCTION public.notify_customer_created();
-CREATE TRIGGER on_staff_phone_changed_notify_webhook AFTER INSERT OR UPDATE OF phone, phone1, phone2 ON staff FOR EACH ROW EXECUTE FUNCTION public.notify_staff_phone_changed();
+CREATE TRIGGER on_staff_phone_changed_notify_webhook AFTER INSERT OR UPDATE OF phone2 ON staff FOR EACH ROW EXECUTE FUNCTION public.notify_staff_phone_changed();
 
 -- SEED DATA
 

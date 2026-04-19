@@ -56,8 +56,10 @@ export default function PersonnelList({ showToast }: PersonnelListProps) {
   }
 
   const getPhoneSummary = (member: (typeof staff)[number]) => {
-    const extraPhones = [member.phone1, member.phone2].filter(Boolean)
-    return extraPhones.length > 0 ? `${member.phone} / ${extraPhones.join(' / ')}` : member.phone
+    const segments = [`SĐTH: ${member.phone}`]
+    if (member.phone1) segments.push(`WhatsApp: ${member.phone1}`)
+    if (member.phone2) segments.push(`Zalo: ${member.phone2}`)
+    return segments.join(' / ')
   }
 
   return (
@@ -89,7 +91,7 @@ export default function PersonnelList({ showToast }: PersonnelListProps) {
                   <tr>
                     <th className="px-4 py-3 font-semibold">Họ và tên</th>
                     <th className="px-4 py-3 font-semibold">Chức vụ</th>
-                    <th className="px-4 py-3 font-semibold">Số điện thoại</th>
+                    <th className="px-4 py-3 font-semibold">Liên hệ</th>
                     <th className="px-4 py-3 font-semibold">Dự án đang tham gia</th>
                     <th className="px-4 py-3 font-semibold">Trạng thái</th>
                     <th className="px-4 py-3 font-semibold">Hành động</th>
