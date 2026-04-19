@@ -61,6 +61,7 @@ Dự án cấu hình `vite.config.ts` với `base: '/CONSTRUCTION_PLANNING-/'` v
 ```sql
 create table if not exists public.staff (
   id uuid primary key references auth.users(id) on delete cascade,
+  user_id text,
   email text unique not null,
   full_name text,
   name text,
@@ -116,6 +117,9 @@ on public.staff
 for update
 using (auth.uid() = id);
 
+alter table public.staff add column if not exists user_id text;
+create index if not exists staff_user_id_idx on public.staff(user_id);
+
 -- Trigger tự tạo staff khi có auth user mới
 create or replace function public.handle_new_auth_user_staff()
 returns trigger
@@ -126,6 +130,7 @@ as $$
 begin
   insert into public.staff (
     id,
+    user_id,
     email,
     full_name,
     name,
@@ -136,6 +141,7 @@ begin
     updated_at
   ) values (
     new.id,
+    null,
     new.email,
     coalesce(new.raw_user_meta_data ->> 'name', new.raw_user_meta_data ->> 'full_name'),
     coalesce(new.raw_user_meta_data ->> 'name', new.email),
@@ -147,6 +153,7 @@ begin
   )
   on conflict (id) do update set
     email = excluded.email,
+    user_id = coalesce(public.staff.user_id, excluded.user_id),
     full_name = coalesce(public.staff.full_name, excluded.full_name),
     name = coalesce(public.staff.name, excluded.name),
     phone = coalesce(public.staff.phone, excluded.phone),
@@ -252,6 +259,8 @@ set search_path = public
 as $$
 declare
   customer_payload jsonb;
+  assigned_staff_payload jsonb;
+  assigned_user_ids_payload jsonb;
   supervisors_payload jsonb;
 begin
   select jsonb_build_object(
@@ -276,7 +285,10 @@ begin
   select coalesce(
     jsonb_agg(
       jsonb_build_object(
-        'id', staff_row.id,
+        'id', assigned.staff_id,
+        'staffId', assigned.staff_id,
+        'userId', staff_row.user_id,
+        'user_id', staff_row.user_id,
         'name', coalesce(staff_row.name, staff_row.full_name, staff_row.email),
         'fullName', staff_row.full_name,
         'phone', staff_row.phone,
@@ -285,12 +297,43 @@ begin
         'isActive', staff_row.is_active,
         'avatar', staff_row.avatar
       )
+      order by assigned.ord
     ),
     '[]'::jsonb
   )
   into supervisors_payload
-  from public.staff as staff_row
-  where staff_row.id = any(coalesce(new.assigned_staff, array[]::uuid[]));
+  from unnest(coalesce(new.assigned_staff, array[]::uuid[])) with ordinality as assigned(staff_id, ord)
+  left join public.staff as staff_row on staff_row.id = assigned.staff_id;
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'staffId', assigned.staff_id,
+        'userId', staff_row.user_id,
+        'user_id', staff_row.user_id,
+        'name', coalesce(staff_row.name, staff_row.full_name, staff_row.email),
+        'fullName', staff_row.full_name,
+        'phone', staff_row.phone,
+        'email', staff_row.email,
+        'role', staff_row.role,
+        'isActive', staff_row.is_active,
+        'avatar', staff_row.avatar
+      )
+      order by assigned.ord
+    ),
+    '[]'::jsonb
+  )
+  into assigned_staff_payload
+  from unnest(coalesce(new.assigned_staff, array[]::uuid[])) with ordinality as assigned(staff_id, ord)
+  left join public.staff as staff_row on staff_row.id = assigned.staff_id;
+
+  select coalesce(
+    jsonb_agg(to_jsonb(staff_row.user_id) order by assigned.ord) filter (where staff_row.user_id is not null),
+    '[]'::jsonb
+  )
+  into assigned_user_ids_payload
+  from unnest(coalesce(new.assigned_staff, array[]::uuid[])) with ordinality as assigned(staff_id, ord)
+  left join public.staff as staff_row on staff_row.id = assigned.staff_id;
 
   begin
     perform net.http_post(
@@ -320,6 +363,8 @@ begin
           'endDate', new.end_date,
           'webhookUrl', new.webhook_url,
           'assignedStaffIds', to_jsonb(coalesce(new.assigned_staff, array[]::uuid[])),
+          'assignedUserIds', assigned_user_ids_payload,
+          'assignedStaff', assigned_staff_payload,
           'projectTypeId', new.project_type_id,
           'notes', new.notes,
           'zaloGroupThreadId', new.zalo_group_thread_id,
@@ -349,3 +394,5 @@ for each row execute function public.notify_project_created();
 ```
 
 Payload sẽ gồm 3 khối chính: `project`, `customer`, và `supervisors`.
+
+Mỗi nhân sự được gán sẽ có thêm `userId` và `user_id` lấy từ `public.staff.user_id` để dùng cho Zalo group. Ngoài ra `project.assignedUserIds` chỉ chứa các `user_id` hợp lệ để đưa thẳng sang n8n.

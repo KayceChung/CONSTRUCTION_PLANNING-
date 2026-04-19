@@ -10,6 +10,7 @@ AS $$
 BEGIN
   INSERT INTO public.staff (
     id,
+    user_id,
     email,
     full_name,
     name,
@@ -20,6 +21,7 @@ BEGIN
     updated_at
   ) VALUES (
     NEW.id,
+    NULL,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data ->> 'name', NEW.raw_user_meta_data ->> 'full_name'),
     COALESCE(NEW.raw_user_meta_data ->> 'name', NEW.email),
@@ -31,6 +33,7 @@ BEGIN
   )
   ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
+    user_id = COALESCE(public.staff.user_id, EXCLUDED.user_id),
     full_name = COALESCE(public.staff.full_name, EXCLUDED.full_name),
     name = COALESCE(public.staff.name, EXCLUDED.name),
     phone = COALESCE(public.staff.phone, EXCLUDED.phone),

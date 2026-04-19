@@ -23,6 +23,7 @@ CREATE TYPE zalo_status_enum AS ENUM ('linked', 'pending', 'failed');
 -- Staff table (users with roles)
 CREATE TABLE staff (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id TEXT,
     email TEXT UNIQUE NOT NULL,
     full_name TEXT,
     name TEXT,
@@ -274,6 +275,8 @@ SET search_path = public
 AS $$
 DECLARE
     customer_payload jsonb;
+    assigned_staff_payload jsonb;
+    assigned_user_ids_payload jsonb;
     supervisors_payload jsonb;
 BEGIN
     SELECT jsonb_build_object(
@@ -298,7 +301,10 @@ BEGIN
     SELECT COALESCE(
         jsonb_agg(
             jsonb_build_object(
-                'id', staff_row.id,
+                'id', assigned.staff_id,
+                'staffId', assigned.staff_id,
+                'userId', staff_row.user_id,
+                'user_id', staff_row.user_id,
                 'name', COALESCE(staff_row.name, staff_row.full_name, staff_row.email),
                 'fullName', staff_row.full_name,
                 'phone', staff_row.phone,
@@ -307,12 +313,43 @@ BEGIN
                 'isActive', staff_row.is_active,
                 'avatar', staff_row.avatar
             )
+            ORDER BY assigned.ord
         ),
         '[]'::jsonb
     )
     INTO supervisors_payload
-    FROM public.staff AS staff_row
-    WHERE staff_row.id = ANY(COALESCE(NEW.assigned_staff, ARRAY[]::uuid[]));
+    FROM unnest(COALESCE(NEW.assigned_staff, ARRAY[]::uuid[])) WITH ORDINALITY AS assigned(staff_id, ord)
+    LEFT JOIN public.staff AS staff_row ON staff_row.id = assigned.staff_id;
+
+    SELECT COALESCE(
+        jsonb_agg(
+            jsonb_build_object(
+                'staffId', assigned.staff_id,
+                'userId', staff_row.user_id,
+                'user_id', staff_row.user_id,
+                'name', COALESCE(staff_row.name, staff_row.full_name, staff_row.email),
+                'fullName', staff_row.full_name,
+                'phone', staff_row.phone,
+                'email', staff_row.email,
+                'role', staff_row.role,
+                'isActive', staff_row.is_active,
+                'avatar', staff_row.avatar
+            )
+            ORDER BY assigned.ord
+        ),
+        '[]'::jsonb
+    )
+    INTO assigned_staff_payload
+    FROM unnest(COALESCE(NEW.assigned_staff, ARRAY[]::uuid[])) WITH ORDINALITY AS assigned(staff_id, ord)
+    LEFT JOIN public.staff AS staff_row ON staff_row.id = assigned.staff_id;
+
+    SELECT COALESCE(
+        jsonb_agg(to_jsonb(staff_row.user_id) ORDER BY assigned.ord) FILTER (WHERE staff_row.user_id IS NOT NULL),
+        '[]'::jsonb
+    )
+    INTO assigned_user_ids_payload
+    FROM unnest(COALESCE(NEW.assigned_staff, ARRAY[]::uuid[])) WITH ORDINALITY AS assigned(staff_id, ord)
+    LEFT JOIN public.staff AS staff_row ON staff_row.id = assigned.staff_id;
 
     BEGIN
         PERFORM net.http_post(
@@ -342,6 +379,8 @@ BEGIN
                     'endDate', NEW.end_date,
                     'webhookUrl', NEW.webhook_url,
                     'assignedStaffIds', to_jsonb(COALESCE(NEW.assigned_staff, ARRAY[]::uuid[])),
+                    'assignedUserIds', assigned_user_ids_payload,
+                    'assignedStaff', assigned_staff_payload,
                     'projectTypeId', NEW.project_type_id,
                     'notes', NEW.notes,
                     'zaloGroupThreadId', NEW.zalo_group_thread_id,

@@ -1,5 +1,53 @@
--- Backend webhook for newly created projects
--- Run this in Supabase SQL Editor once
+-- Add staff.user_id for Zalo thread/user identifier
+-- and include it in project_created webhook payload.
+
+ALTER TABLE public.staff
+ADD COLUMN IF NOT EXISTS user_id TEXT;
+
+CREATE INDEX IF NOT EXISTS staff_user_id_idx
+ON public.staff(user_id);
+
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user_staff()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.staff (
+    id,
+    user_id,
+    email,
+    full_name,
+    name,
+    phone,
+    role,
+    is_active,
+    created_at,
+    updated_at
+  ) VALUES (
+    NEW.id,
+    NULL,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data ->> 'name', NEW.raw_user_meta_data ->> 'full_name'),
+    COALESCE(NEW.raw_user_meta_data ->> 'name', NEW.email),
+    NEW.raw_user_meta_data ->> 'phone',
+    'supervisor',
+    false,
+    timezone('utc', now()),
+    timezone('utc', now())
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    user_id = COALESCE(public.staff.user_id, EXCLUDED.user_id),
+    full_name = COALESCE(public.staff.full_name, EXCLUDED.full_name),
+    name = COALESCE(public.staff.name, EXCLUDED.name),
+    phone = COALESCE(public.staff.phone, EXCLUDED.phone),
+    updated_at = timezone('utc', now());
+
+  RETURN NEW;
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION public.notify_project_created()
 RETURNS trigger
@@ -136,9 +184,3 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-
-DROP TRIGGER IF EXISTS on_project_created_notify_webhook ON public.projects;
-CREATE TRIGGER on_project_created_notify_webhook
-AFTER INSERT ON public.projects
-FOR EACH ROW
-EXECUTE FUNCTION public.notify_project_created();
