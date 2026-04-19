@@ -28,6 +28,8 @@ CREATE TABLE staff (
     full_name TEXT,
     name TEXT,
     phone TEXT,
+    phone1 TEXT,
+    phone2 TEXT,
     role role_enum NOT NULL DEFAULT 'supervisor',
     is_admin BOOLEAN DEFAULT false,
     avatar TEXT,
@@ -403,6 +405,63 @@ BEGIN
 END;
 $$;
 
+-- Staff webhook trigger: send new staff payload and phone updates from backend.
+CREATE OR REPLACE FUNCTION public.notify_staff_phone_changed()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF TG_OP = 'UPDATE'
+        AND OLD.phone1 IS NOT DISTINCT FROM NEW.phone1
+        AND OLD.phone2 IS NOT DISTINCT FROM NEW.phone2 THEN
+        RETURN NEW;
+    END IF;
+
+    BEGIN
+        PERFORM net.http_post(
+            url := 'https://yi7a1c8g.rpcld.co/webhook/df2a6ad6-afad-45d8-ba3c-f7cafaaa4060',
+            headers := '{"Content-Type":"application/json"}'::jsonb,
+            body := jsonb_build_object(
+                'event', CASE WHEN TG_OP = 'INSERT' THEN 'staff_created' ELSE 'staff_phone_updated' END,
+                'operation', TG_OP,
+                'timestamp', to_jsonb(timezone('utc', now())),
+                'staff', jsonb_build_object(
+                    'id', NEW.id,
+                    'userId', NEW.user_id,
+                    'user_id', NEW.user_id,
+                    'email', NEW.email,
+                    'name', COALESCE(NEW.name, NEW.full_name, NEW.email),
+                    'fullName', NEW.full_name,
+                    'phone', NEW.phone,
+                    'phone1', NEW.phone1,
+                    'phone2', NEW.phone2,
+                    'role', NEW.role,
+                    'isActive', NEW.is_active,
+                    'isAdmin', NEW.is_admin,
+                    'avatar', NEW.avatar,
+                    'createdAt', NEW.created_at,
+                    'updatedAt', NEW.updated_at
+                ),
+                'changes', CASE
+                    WHEN TG_OP = 'UPDATE' THEN jsonb_build_object(
+                        'phone1', jsonb_build_object('old', OLD.phone1, 'new', NEW.phone1),
+                        'phone2', jsonb_build_object('old', OLD.phone2, 'new', NEW.phone2)
+                    )
+                    ELSE NULL
+                END
+            )
+        );
+    EXCEPTION
+        WHEN OTHERS THEN
+            RAISE LOG 'staff webhook failed for staff %: %', NEW.id, SQLERRM;
+    END;
+
+    RETURN NEW;
+END;
+$$;
+
 -- Customer webhook trigger: send new customer payload from backend to avoid browser CORS issues.
 CREATE OR REPLACE FUNCTION public.notify_customer_created()
 RETURNS TRIGGER
@@ -464,6 +523,7 @@ CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects FOR EACH ROW
 CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER on_project_created_notify_webhook AFTER INSERT ON projects FOR EACH ROW EXECUTE FUNCTION public.notify_project_created();
 CREATE TRIGGER on_customer_created_notify_webhook AFTER INSERT ON customers FOR EACH ROW EXECUTE FUNCTION public.notify_customer_created();
+CREATE TRIGGER on_staff_phone_changed_notify_webhook AFTER INSERT OR UPDATE OF phone1, phone2 ON staff FOR EACH ROW EXECUTE FUNCTION public.notify_staff_phone_changed();
 
 -- SEED DATA
 

@@ -65,6 +65,9 @@ create table if not exists public.staff (
   email text unique not null,
   full_name text,
   name text,
+  phone text,
+  phone1 text,
+  phone2 text,
   is_active boolean default false,
   is_admin boolean default false,
   role text,
@@ -118,6 +121,8 @@ for update
 using (auth.uid() = id);
 
 alter table public.staff add column if not exists user_id text;
+alter table public.staff add column if not exists phone1 text;
+alter table public.staff add column if not exists phone2 text;
 create index if not exists staff_user_id_idx on public.staff(user_id);
 
 -- Trigger tự tạo staff khi có auth user mới
@@ -135,6 +140,8 @@ begin
     full_name,
     name,
     phone,
+    phone1,
+    phone2,
     role,
     is_active,
     created_at,
@@ -146,6 +153,8 @@ begin
     coalesce(new.raw_user_meta_data ->> 'name', new.raw_user_meta_data ->> 'full_name'),
     coalesce(new.raw_user_meta_data ->> 'name', new.email),
     new.raw_user_meta_data ->> 'phone',
+    null,
+    null,
     'supervisor',
     false,
     timezone('utc', now()),
@@ -157,6 +166,8 @@ begin
     full_name = coalesce(public.staff.full_name, excluded.full_name),
     name = coalesce(public.staff.name, excluded.name),
     phone = coalesce(public.staff.phone, excluded.phone),
+    phone1 = coalesce(public.staff.phone1, excluded.phone1),
+    phone2 = coalesce(public.staff.phone2, excluded.phone2),
     updated_at = timezone('utc', now());
 
   return new;
@@ -396,3 +407,72 @@ for each row execute function public.notify_project_created();
 Payload sẽ gồm 3 khối chính: `project`, `customer`, và `supervisors`.
 
 Mỗi nhân sự được gán sẽ có thêm `userId` và `user_id` lấy từ `public.staff.user_id` để dùng cho Zalo group. Ngoài ra `project.assignedUserIds` chỉ chứa các `user_id` hợp lệ để đưa thẳng sang n8n.
+
+### 8. Bắn webhook backend khi thêm nhân sự mới hoặc cập nhật `phone1` / `phone2`
+```sql
+alter table public.staff add column if not exists phone1 text;
+alter table public.staff add column if not exists phone2 text;
+
+create or replace function public.notify_staff_phone_changed()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'UPDATE'
+    and old.phone1 is not distinct from new.phone1
+    and old.phone2 is not distinct from new.phone2 then
+    return new;
+  end if;
+
+  begin
+    perform net.http_post(
+      url := 'https://yi7a1c8g.rpcld.co/webhook/df2a6ad6-afad-45d8-ba3c-f7cafaaa4060',
+      headers := '{"Content-Type":"application/json"}'::jsonb,
+      body := jsonb_build_object(
+        'event', case when tg_op = 'INSERT' then 'staff_created' else 'staff_phone_updated' end,
+        'operation', tg_op,
+        'timestamp', to_jsonb(timezone('utc', now())),
+        'staff', jsonb_build_object(
+          'id', new.id,
+          'userId', new.user_id,
+          'user_id', new.user_id,
+          'email', new.email,
+          'name', coalesce(new.name, new.full_name, new.email),
+          'fullName', new.full_name,
+          'phone', new.phone,
+          'phone1', new.phone1,
+          'phone2', new.phone2,
+          'role', new.role,
+          'isActive', new.is_active,
+          'isAdmin', new.is_admin,
+          'avatar', new.avatar,
+          'createdAt', new.created_at,
+          'updatedAt', new.updated_at
+        ),
+        'changes', case
+          when tg_op = 'UPDATE' then jsonb_build_object(
+            'phone1', jsonb_build_object('old', old.phone1, 'new', new.phone1),
+            'phone2', jsonb_build_object('old', old.phone2, 'new', new.phone2)
+          )
+          else null
+        end
+      )
+    );
+  exception
+    when others then
+      raise log 'staff webhook failed for staff %: %', new.id, sqlerrm;
+  end;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_staff_phone_changed_notify_webhook on public.staff;
+create trigger on_staff_phone_changed_notify_webhook
+after insert or update of phone1, phone2 on public.staff
+for each row execute function public.notify_staff_phone_changed();
+```
+
+Webhook này sẽ bắn JSON khi có staff mới và khi `phone1` hoặc `phone2` thay đổi trong `public.staff`.
