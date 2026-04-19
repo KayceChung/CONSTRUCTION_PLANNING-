@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { InteractionLog, Customer } from '../types'
-import { loadInteractionLogs, loadCustomers, saveInteractionLogs, saveCustomers } from '../utils/storage'
+import { createCustomerRecord, loadInteractionLogs, loadCustomers, saveInteractionLogs, saveCustomers } from '../utils/storage'
+import { sendCustomerCreatedWebhook } from '../utils/webhook'
 
 interface CustomerState {
   customers: Customer[]
@@ -25,9 +26,13 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
     }
   },
   addCustomer: async (customer) => {
-    const next = [...get().customers, customer]
-    await saveCustomers(next)
+    const createdCustomer = await createCustomerRecord(customer)
+    const next = [...get().customers, createdCustomer]
     set({ customers: next })
+
+    void sendCustomerCreatedWebhook(createdCustomer).catch((error) => {
+      console.error('Customer created webhook failed:', error)
+    })
   },
   updateCustomer: async (customerId, changes) => {
     const next = get().customers.map((customer) =>

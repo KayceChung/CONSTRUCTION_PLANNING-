@@ -369,6 +369,18 @@ export async function loadCustomers(): Promise<Customer[]> {
   return (data || []).map(mapCustomerFromRow)
 }
 
+export async function createCustomerRecord(customer: Customer): Promise<Customer> {
+  const { data, error } = await supabase
+    .from('customers')
+    .insert(mapCustomerToRow(customer))
+    .select('*')
+    .single()
+
+  if (error) throw error
+
+  return mapCustomerFromRow(data)
+}
+
 export async function saveCustomers(customers: Customer[]): Promise<void> {
   const { error } = await supabase
     .from('customers')
