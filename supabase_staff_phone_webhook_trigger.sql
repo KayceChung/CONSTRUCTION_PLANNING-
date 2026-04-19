@@ -1,5 +1,5 @@
 -- Add staff phone1/phone2 columns and send backend webhook
--- when a new staff row is created or phone1/phone2 changes.
+-- when a new staff row is created or phone/phone1/phone2 changes.
 
 ALTER TABLE public.staff
 ADD COLUMN IF NOT EXISTS phone1 TEXT;
@@ -15,6 +15,7 @@ SET search_path = public
 AS $$
 BEGIN
   IF TG_OP = 'UPDATE'
+    AND OLD.phone IS NOT DISTINCT FROM NEW.phone
     AND OLD.phone1 IS NOT DISTINCT FROM NEW.phone1
     AND OLD.phone2 IS NOT DISTINCT FROM NEW.phone2 THEN
     RETURN NEW;
@@ -47,6 +48,7 @@ BEGIN
         ),
         'changes', CASE
           WHEN TG_OP = 'UPDATE' THEN jsonb_build_object(
+            'phone', jsonb_build_object('old', OLD.phone, 'new', NEW.phone),
             'phone1', jsonb_build_object('old', OLD.phone1, 'new', NEW.phone1),
             'phone2', jsonb_build_object('old', OLD.phone2, 'new', NEW.phone2)
           )
@@ -65,6 +67,6 @@ $$;
 
 DROP TRIGGER IF EXISTS on_staff_phone_changed_notify_webhook ON public.staff;
 CREATE TRIGGER on_staff_phone_changed_notify_webhook
-AFTER INSERT OR UPDATE OF phone1, phone2 ON public.staff
+AFTER INSERT OR UPDATE OF phone, phone1, phone2 ON public.staff
 FOR EACH ROW
 EXECUTE FUNCTION public.notify_staff_phone_changed();

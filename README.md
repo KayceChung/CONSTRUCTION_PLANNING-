@@ -408,7 +408,7 @@ Payload sẽ gồm 3 khối chính: `project`, `customer`, và `supervisors`.
 
 Mỗi nhân sự được gán sẽ có thêm `userId` và `user_id` lấy từ `public.staff.user_id` để dùng cho Zalo group. Ngoài ra `project.assignedUserIds` chỉ chứa các `user_id` hợp lệ để đưa thẳng sang n8n.
 
-### 8. Bắn webhook backend khi thêm nhân sự mới hoặc cập nhật `phone1` / `phone2`
+### 8. Bắn webhook backend khi thêm nhân sự mới hoặc cập nhật `phone` / `phone1` / `phone2`
 ```sql
 alter table public.staff add column if not exists phone1 text;
 alter table public.staff add column if not exists phone2 text;
@@ -421,6 +421,7 @@ set search_path = public
 as $$
 begin
   if tg_op = 'UPDATE'
+    and old.phone is not distinct from new.phone
     and old.phone1 is not distinct from new.phone1
     and old.phone2 is not distinct from new.phone2 then
     return new;
@@ -453,6 +454,7 @@ begin
         ),
         'changes', case
           when tg_op = 'UPDATE' then jsonb_build_object(
+            'phone', jsonb_build_object('old', old.phone, 'new', new.phone),
             'phone1', jsonb_build_object('old', old.phone1, 'new', new.phone1),
             'phone2', jsonb_build_object('old', old.phone2, 'new', new.phone2)
           )
@@ -471,8 +473,8 @@ $$;
 
 drop trigger if exists on_staff_phone_changed_notify_webhook on public.staff;
 create trigger on_staff_phone_changed_notify_webhook
-after insert or update of phone1, phone2 on public.staff
+after insert or update of phone, phone1, phone2 on public.staff
 for each row execute function public.notify_staff_phone_changed();
 ```
 
-Webhook này sẽ bắn JSON khi có staff mới và khi `phone1` hoặc `phone2` thay đổi trong `public.staff`.
+Webhook này sẽ bắn JSON khi có staff mới và khi `phone`, `phone1` hoặc `phone2` thay đổi trong `public.staff`.
