@@ -53,6 +53,7 @@ Dự án cấu hình `vite.config.ts` với `base: '/CONSTRUCTION_PLANNING-/'` v
 - Dữ liệu lưu trên cả localStorage và Supabase.
 - Cần thiết lập Supabase Auth và RLS policies để hoạt động đầy đủ.
 - Webhook tạo khách hàng mới nên chạy từ Supabase trigger để tránh lỗi CORS từ trình duyệt.
+- Webhook tạo dự án mới cũng nên chạy từ Supabase trigger để gửi kèm dữ liệu khách hàng và giám sát viên tham gia.
 
 ## Supabase Setup
 
@@ -240,3 +241,111 @@ for each row execute function public.notify_customer_created();
 ```
 
 Lưu ý: workflow ở URL webhook phải ở trạng thái active. Nếu webhook server trả `404 not registered`, trigger vẫn chạy nhưng phía endpoint sẽ không nhận dữ liệu.
+
+### 7. Bắn webhook backend khi tạo dự án mới
+```sql
+create or replace function public.notify_project_created()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  customer_payload jsonb;
+  supervisors_payload jsonb;
+begin
+  select jsonb_build_object(
+    'id', customer_row.id,
+    'fullName', customer_row.full_name,
+    'phone', customer_row.phone,
+    'phone2', customer_row.phone2,
+    'email', customer_row.email,
+    'address', customer_row.address,
+    'source', customer_row.source,
+    'status', customer_row.status,
+    'note', customer_row.note,
+    'notes', customer_row.notes,
+    'zaloThreadId', customer_row.zalo_thread_id,
+    'createdAt', customer_row.created_at,
+    'updatedAt', customer_row.updated_at
+  )
+  into customer_payload
+  from public.customers as customer_row
+  where customer_row.id = new.customer_id;
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', staff_row.id,
+        'name', coalesce(staff_row.name, staff_row.full_name, staff_row.email),
+        'fullName', staff_row.full_name,
+        'phone', staff_row.phone,
+        'email', staff_row.email,
+        'role', staff_row.role,
+        'isActive', staff_row.is_active,
+        'avatar', staff_row.avatar
+      )
+    ),
+    '[]'::jsonb
+  )
+  into supervisors_payload
+  from public.staff as staff_row
+  where staff_row.id = any(coalesce(new.assigned_staff, array[]::uuid[]));
+
+  begin
+    perform net.http_post(
+      url := 'https://yi7a1c8g.rpcld.co/webhook/b44613c6-4148-4497-b1fe-298d6d84060d',
+      headers := '{"Content-Type":"application/json"}'::jsonb,
+      body := jsonb_build_object(
+        'event', 'project_created',
+        'timestamp', to_jsonb(timezone('utc', now())),
+        'project', jsonb_build_object(
+          'id', new.id,
+          'name', new.name,
+          'location', new.location,
+          'client', new.client,
+          'customerId', new.customer_id,
+          'category', new.category,
+          'categoryNote', new.category_note,
+          'addressFull', new.address_full,
+          'addressWard', new.address_ward,
+          'addressDistrict', new.address_district,
+          'addressProvince', new.address_province,
+          'addressGoogleMapsUrl', new.address_google_maps_url,
+          'contractValue', new.contract_value,
+          'paidAmount', new.paid_amount,
+          'paymentNote', new.payment_note,
+          'distanceKm', new.distance_km,
+          'startDate', new.start_date,
+          'endDate', new.end_date,
+          'webhookUrl', new.webhook_url,
+          'assignedStaffIds', to_jsonb(coalesce(new.assigned_staff, array[]::uuid[])),
+          'projectTypeId', new.project_type_id,
+          'notes', new.notes,
+          'zaloGroupThreadId', new.zalo_group_thread_id,
+          'zaloGroupName', new.zalo_group_name,
+          'zaloLinkedAt', new.zalo_linked_at,
+          'zaloStatus', new.zalo_status,
+          'createdAt', new.created_at,
+          'updatedAt', new.updated_at
+        ),
+        'customer', customer_payload,
+        'supervisors', supervisors_payload
+      )
+    );
+  exception
+    when others then
+      raise log 'project_created webhook failed for project %: %', new.id, sqlerrm;
+  end;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_project_created_notify_webhook on public.projects;
+create trigger on_project_created_notify_webhook
+after insert on public.projects
+for each row execute function public.notify_project_created();
+```
+
+Payload sẽ gồm 3 khối chính: `project`, `customer`, và `supervisors`.
