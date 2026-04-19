@@ -1,7 +1,5 @@
-import { Customer, Project, Task, TaskStatus } from '../types'
+import { Project, Task, TaskStatus } from '../types'
 import { calculateProjectProgress } from './progress'
-
-const CUSTOMER_CREATED_WEBHOOK_URL = import.meta.env.VITE_CUSTOMER_CREATED_WEBHOOK_URL || 'https://yi7a1c8g.rpcld.co/webhook/b1632ac8-f6b2-493e-a868-64ad461b91f1'
 
 async function postJsonWebhook(url: string, payload: unknown): Promise<void> {
   const response = await fetch(url, {
@@ -14,42 +12,6 @@ async function postJsonWebhook(url: string, payload: unknown): Promise<void> {
 
   if (!response.ok) {
     throw new Error(`Webhook lỗi ${response.status}`)
-  }
-}
-
-export async function sendCustomerCreatedWebhook(customer: Customer): Promise<void> {
-  if (!CUSTOMER_CREATED_WEBHOOK_URL) return
-
-  const payload = {
-    event: 'customer_created',
-    timestamp: new Date().toISOString(),
-    customer: {
-      id: customer.id,
-      fullName: customer.fullName,
-      phone: customer.phone,
-      phone2: customer.phone2 || null,
-      email: customer.email || null,
-      address: customer.address || null,
-      source: customer.source || null,
-      status: customer.status || 'lead',
-      note: customer.note || null,
-      notes: customer.notes || null,
-      zaloThreadId: customer.zaloThreadId || null,
-      projectIds: customer.projectIds,
-      createdAt: customer.createdAt,
-      updatedAt: customer.updatedAt || null
-    }
-  }
-
-  try {
-    await postJsonWebhook(CUSTOMER_CREATED_WEBHOOK_URL, payload)
-  } catch (firstError) {
-    console.error('Webhook customer_created lần 1 thất bại:', firstError)
-    try {
-      await postJsonWebhook(CUSTOMER_CREATED_WEBHOOK_URL, payload)
-    } catch (secondError) {
-      console.error('Webhook customer_created lần 2 thất bại:', secondError)
-    }
   }
 }
 

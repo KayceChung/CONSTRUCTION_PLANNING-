@@ -7,6 +7,7 @@
 -- EXTENSIONS
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- ENUMS
 CREATE TYPE role_enum AS ENUM ('manager', 'supervisor');
@@ -264,6 +265,48 @@ CREATE POLICY "Allow authenticated users to insert change_logs" ON change_logs F
 CREATE POLICY "Allow authenticated users to update change_logs" ON change_logs FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Allow authenticated users to delete change_logs" ON change_logs FOR DELETE TO authenticated USING (true);
 
+-- Customer webhook trigger: send new customer payload from backend to avoid browser CORS issues.
+CREATE OR REPLACE FUNCTION public.notify_customer_created()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    BEGIN
+        PERFORM net.http_post(
+            url := 'https://yi7a1c8g.rpcld.co/webhook/b1632ac8-f6b2-493e-a868-64ad461b91f1',
+            headers := '{"Content-Type":"application/json"}'::jsonb,
+            body := jsonb_build_object(
+                'event', 'customer_created',
+                'timestamp', to_jsonb(timezone('utc', now())),
+                'customer', jsonb_build_object(
+                    'id', NEW.id,
+                    'fullName', NEW.full_name,
+                    'phone', NEW.phone,
+                    'phone2', NEW.phone2,
+                    'email', NEW.email,
+                    'address', NEW.address,
+                    'source', NEW.source,
+                    'status', NEW.status,
+                    'note', NEW.note,
+                    'notes', NEW.notes,
+                    'zaloThreadId', NEW.zalo_thread_id,
+                    'projectIds', '[]'::jsonb,
+                    'createdAt', to_jsonb(NEW.created_at),
+                    'updatedAt', to_jsonb(NEW.updated_at)
+                )
+            )
+        );
+    EXCEPTION
+        WHEN OTHERS THEN
+            RAISE LOG 'customer_created webhook failed for customer %: %', NEW.id, SQLERRM;
+    END;
+
+    RETURN NEW;
+END;
+$$;
+
 -- TRIGGERS
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -281,6 +324,7 @@ CREATE TRIGGER update_project_types_updated_at BEFORE UPDATE ON project_types FO
 CREATE TRIGGER update_task_templates_updated_at BEFORE UPDATE ON task_templates FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER on_customer_created_notify_webhook AFTER INSERT ON customers FOR EACH ROW EXECUTE FUNCTION public.notify_customer_created();
 
 -- SEED DATA
 

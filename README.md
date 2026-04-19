@@ -52,6 +52,7 @@ Dự án cấu hình `vite.config.ts` với `base: '/CONSTRUCTION_PLANNING-/'` v
 - Đây là ứng dụng demo được tích hợp Supabase.
 - Dữ liệu lưu trên cả localStorage và Supabase.
 - Cần thiết lập Supabase Auth và RLS policies để hoạt động đầy đủ.
+- Webhook tạo khách hàng mới nên chạy từ Supabase trigger để tránh lỗi CORS từ trình duyệt.
 
 ## Supabase Setup
 
@@ -186,3 +187,56 @@ on public.customers
 for delete
 using (true);
 ```
+
+### 6. Bắn webhook backend khi tạo khách hàng mới
+```sql
+create extension if not exists pg_net;
+
+create or replace function public.notify_customer_created()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  begin
+    perform net.http_post(
+      url := 'https://yi7a1c8g.rpcld.co/webhook/b1632ac8-f6b2-493e-a868-64ad461b91f1',
+      headers := '{"Content-Type":"application/json"}'::jsonb,
+      body := jsonb_build_object(
+        'event', 'customer_created',
+        'timestamp', to_jsonb(timezone('utc', now())),
+        'customer', jsonb_build_object(
+          'id', new.id,
+          'fullName', new.full_name,
+          'phone', new.phone,
+          'phone2', new.phone2,
+          'email', new.email,
+          'address', new.address,
+          'source', new.source,
+          'status', new.status,
+          'note', new.note,
+          'notes', new.notes,
+          'zaloThreadId', new.zalo_thread_id,
+          'projectIds', '[]'::jsonb,
+          'createdAt', to_jsonb(new.created_at),
+          'updatedAt', to_jsonb(new.updated_at)
+        )
+      )
+    );
+  exception
+    when others then
+      raise log 'customer_created webhook failed for customer %: %', new.id, sqlerrm;
+  end;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_customer_created_notify_webhook on public.customers;
+create trigger on_customer_created_notify_webhook
+after insert on public.customers
+for each row execute function public.notify_customer_created();
+```
+
+Lưu ý: workflow ở URL webhook phải ở trạng thái active. Nếu webhook server trả `404 not registered`, trigger vẫn chạy nhưng phía endpoint sẽ không nhận dữ liệu.
