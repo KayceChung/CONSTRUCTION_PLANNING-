@@ -10,6 +10,7 @@ import { Image, Video } from 'lucide-react'
 
 const schema = z.object({
   status: z.enum(['todo', 'in_progress', 'done', 'adjustment', 'pending', 'cancelled']),
+  description: z.string().optional(),
   note: z.string().optional()
 })
 
@@ -52,12 +53,13 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
   const [completedAt, setCompletedAt] = useState(task.completedAt || '')
 
   const { register, handleSubmit, watch } = useForm<z.infer<typeof schema>>({
-    defaultValues: { status: task.status, note: task.note || '' },
+    defaultValues: { status: task.status, description: task.description, note: task.note || '' },
     resolver: zodResolver(schema)
   })
 
   useEffect(() => {
     register('status')
+    register('description')
     register('note')
   }, [register])
 
@@ -105,6 +107,7 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
 
     onSave({
       status: values.status,
+      description: values.description,
       note: values.note,
       updatedBy: user.name,
       images: task.images,
@@ -136,8 +139,13 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
         <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
           <div className="space-y-4">
             <div className="rounded-3xl bg-slate-50 p-4">
-              <p className="text-sm font-semibold text-slate-700">Mô tả</p>
-              <p className="mt-2 text-slate-600">{task.description}</p>
+              <label className="block text-sm font-semibold text-slate-700">Mô tả</label>
+              <textarea
+                rows={3}
+                className="mt-3 w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900"
+                {...register('description')}
+                defaultValue={task.description || ''}
+              />
             </div>
 
             <div className="rounded-3xl bg-slate-50 p-4">
