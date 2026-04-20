@@ -1,9 +1,6 @@
 -- SQL Script để setup Storage Policies cho task-images bucket
 -- Lưu ý: Bucket 'task-images' cần được tạo trước qua Supabase Dashboard hoặc API
 
--- Enable the storage extension (if not already enabled)
-CREATE EXTENSION IF NOT EXISTS "storage" SCHEMA "storage";
-
 -- Xóa các policy cũ nếu tồn tại (optional)
 DROP POLICY IF EXISTS "Allow public read on task-images" ON storage.objects;
 DROP POLICY IF EXISTS "Allow authenticated upload to task-images" ON storage.objects;

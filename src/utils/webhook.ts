@@ -109,6 +109,21 @@ export async function sendWebhook(
   // n8n will handle uploading to Google Drive, OneDrive, etc.
   const imageBase64Array = task.images || []
 
+  // Convert base64 images to public URLs for Zalo
+  const publicImageUrls = await Promise.all(
+    imageBase64Array.map((img, index) => convertBase64ToUrl(img, project.id, task.id, index))
+  )
+
+  // Filter valid URLs only
+  const imageUrlsArray = publicImageUrls.filter(url => {
+    try {
+      new URL(url)
+      return true
+    } catch {
+      return false
+    }
+  })
+
   const payload = {
     event,
     timestamp: new Date().toISOString(),
@@ -139,9 +154,11 @@ export async function sendWebhook(
       updatedBy: task.updatedBy,
       updatedAt: task.updatedAt,
       createdAt: task.createdAt,
-      imageCount: imageBase64Array.length,
-      imageBase64Array: imageBase64Array,
-      hasImages: imageBase64Array.length > 0,
+      images: imageUrlsArray.length,
+      imageUrls: imageUrlsArray,
+      imageUrlsCsv: imageUrlsArray.join(','),
+      imageUrlsJson: imageUrlsArray,
+      hasImages: imageUrlsArray.length > 0,
       deadline: task.deadline,
       estimatedDays: task.estimatedDays,
       startDate: task.startDate || null,
@@ -223,8 +240,10 @@ export async function sendTestWebhook(project: Project & { projectType?: { name:
       updatedBy: 'System Test',
       updatedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
-      imageCount: 0,
-      imageBase64Array: [],
+      images: 0,
+      imageUrls: [],
+      imageUrlsCsv: '',
+      imageUrlsJson: [],
       hasImages: false,
       deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       estimatedDays: 10,
