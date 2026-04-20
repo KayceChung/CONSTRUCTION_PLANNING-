@@ -38,7 +38,7 @@ export default function KanbanCard({ task, totalTasks, onOpen }: KanbanCardProps
       {...listeners}
       layout
       title={task.status === 'cancelled' ? 'Hạng mục đã hủy và không tính vào tiến độ' : `Hoàn thành hạng mục này sẽ tăng tiến độ thêm ${weight}%`}
-      className={`rounded-3xl border p-4 shadow-sm transition ${isDragging ? 'border-brand-500 bg-brand-50 shadow-lg' : 'border-slate-200 bg-white'}`}
+      className={`rounded-3xl border p-4 shadow-sm transition ${isDragging ? 'border-blue-500 bg-blue-50 shadow-lg' : 'border-slate-200 bg-white'}`}
     >
       <button type="button" onClick={onOpen} className="text-left">
         <div className="flex items-center justify-between gap-3">

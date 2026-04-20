@@ -249,7 +249,7 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
 
       newProject.tasks = tasksToCreate
 
-      // Save the project
+      // Save the project - wait for completion before navigation
       await addProject(newProject)
 
       showToast('Dự án đã được tạo thành công', 'success')
@@ -287,10 +287,14 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
         }
       }
 
+      // Close modal first
       onClose()
 
-      // Redirect to project detail
-      navigate(`/projects/${newProject.id}`)
+      // Small delay to ensure state has been updated in the UI
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Then redirect to project detail
+      navigate(`/projects/${newProject.id}`, { replace: false })
     } catch (error) {
       console.error('Error creating project:', error)
       showToast(getErrorMessage(error), 'error')
@@ -326,11 +330,11 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
 
         {/* Step indicators */}
         <div className="flex items-center justify-center gap-4 border-b border-slate-200 px-6 py-4">
-          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step === 1 ? 'bg-brand-900 text-white' : 'bg-slate-200 text-slate-700'}`}>
+          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step === 1 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
             1
           </div>
           <div className="h-1 w-8 bg-slate-200" />
-          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step === 2 ? 'bg-brand-900 text-white' : 'bg-slate-200 text-slate-700'}`}>
+          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step === 2 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
             2
           </div>
         </div>
@@ -618,7 +622,7 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
             <button
               type="button"
               onClick={handleNextStep}
-              className="flex items-center justify-center gap-2 flex-1 rounded-2xl bg-brand-900 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700"
+              className="flex items-center justify-center gap-2 flex-1 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700"
             >
               Tiếp theo <ChevronRight size={18} />
             </button>
@@ -627,7 +631,7 @@ export default function ProjectCreateModal({ isOpen, onClose, showToast }: Proje
               type="button"
               onClick={handleCreateProject}
               disabled={zaloStatus === 'linking'}
-              className="flex-1 rounded-2xl bg-brand-900 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex-1 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {zaloStatus === 'linking' ? 'Đang xử lý...' : 'Tạo dự án'}
             </button>

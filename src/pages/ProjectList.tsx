@@ -30,7 +30,7 @@ export default function ProjectList({ showToast }: ProjectListProps) {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.18em] text-brand-500">Danh sách dự án</p>
+          <p className="text-sm uppercase tracking-[0.18em] text-blue-600">Danh sách dự án</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-900">Quản lý dự án</h1>
         </div>
         {canEdit ? (
@@ -53,7 +53,7 @@ export default function ProjectList({ showToast }: ProjectListProps) {
             <p className="mt-4 text-sm text-slate-600">Chủ đầu tư: {project.client}</p>
             <p className="mt-2 text-sm text-slate-600">Webhook: {project.webhookUrl || 'Chưa cấu hình'}</p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to={`/projects/${project.id}`} className="rounded-2xl bg-brand-900 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+              <Link to={`/projects/${project.id}`} className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
                 Xem chi tiết
               </Link>
               {canEdit ? (

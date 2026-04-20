@@ -72,8 +72,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (error) throw error
   },
   logout: async () => {
+    // Clear user state first for immediate UI update
+    set({ user: null })
+    
+    // Then sign out from Supabase
     const { error } = await supabase.auth.signOut()
     if (error) throw error
-    set({ user: null })
   }
 }))

@@ -94,7 +94,7 @@ export default function App() {
       !user &&
       !publicPaths.includes(location.pathname)
     ) {
-      navigate('/login')
+      navigate('/login', { replace: true })
     }
   }, [authLoading, user, navigate, location.pathname])
 

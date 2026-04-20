@@ -214,6 +214,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   const [paidAmount, setPaidAmount] = useState('0')
   const [paymentNote, setPaymentNote] = useState('')
   const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const selectedProjectType = useMemo(
     () => projectTypes.find((type) => type.id === selectedProjectTypeId),
@@ -325,12 +326,17 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   const canProceedStep3 = contractValueNumber > 0 && paidAmountNumber >= 0
 
   const handleCreate = async () => {
-    if (!user) return
+    if (!user) {
+      showToast('Phiên đăng nhập chưa sẵn sàng. Vui lòng thử lại sau vài giây.', 'error')
+      return
+    }
+    if (isSubmitting) return
     if (!canProceedStep1 || !canProceedStep2 || !canProceedStep3) {
       showToast('Vui lòng hoàn thành đầy đủ thông tin trước khi tạo dự án', 'error')
       return
     }
 
+    setIsSubmitting(true)
     try {
       const customerId = selectedClientId || selectedCustomerId || uuidv4()
       const projectId = uuidv4()
@@ -422,6 +428,8 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
     } catch (error) {
       console.error('Error creating project:', error)
       showToast(getErrorMessage(error), 'error')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -936,8 +944,8 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
             Tiếp theo →
           </Button>
         ) : (
-          <Button type="button" onClick={handleCreate}>
-            Tạo dự án ✓
+          <Button type="button" onClick={() => void handleCreate()} disabled={isSubmitting}>
+            {isSubmitting ? 'Đang lưu dự án...' : 'Tạo dự án ✓'}
           </Button>
         )}
       </div>

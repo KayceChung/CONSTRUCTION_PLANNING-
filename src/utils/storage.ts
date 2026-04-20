@@ -314,6 +314,211 @@ export async function saveProjects(projects: Project[]): Promise<void> {
   }
 }
 
+function mapProjectChangesToRow(changes: Partial<Project>) {
+  const updateRow: Record<string, unknown> = {}
+
+  if (changes.name !== undefined) updateRow.name = changes.name
+  if (changes.location !== undefined) updateRow.location = changes.location
+  if (changes.client !== undefined) updateRow.client = changes.client
+  if (changes.customerId !== undefined) updateRow.customer_id = changes.customerId
+  if (changes.category !== undefined) updateRow.category = changes.category
+  if (changes.categoryNote !== undefined) updateRow.category_note = changes.categoryNote || null
+  if (changes.address !== undefined) {
+    updateRow.address_full = changes.address.fullAddress
+    updateRow.address_ward = changes.address.ward || null
+    updateRow.address_district = changes.address.district || null
+    updateRow.address_province = changes.address.province || null
+    updateRow.address_google_maps_url = changes.address.googleMapsUrl || null
+  }
+  if (changes.contractValue !== undefined) updateRow.contract_value = changes.contractValue
+  if (changes.paidAmount !== undefined) updateRow.paid_amount = changes.paidAmount
+  if (changes.paymentNote !== undefined) updateRow.payment_note = changes.paymentNote || null
+  if (changes.distanceKm !== undefined) updateRow.distance_km = changes.distanceKm ?? null
+  if (changes.startDate !== undefined) updateRow.start_date = changes.startDate
+  if (changes.endDate !== undefined) updateRow.end_date = changes.endDate
+  if (changes.webhookUrl !== undefined) updateRow.webhook_url = changes.webhookUrl
+  if (changes.assignedStaff !== undefined) updateRow.assigned_staff = changes.assignedStaff
+  if (changes.projectTypeId !== undefined) updateRow.project_type_id = changes.projectTypeId || null
+  if (changes.notes !== undefined) updateRow.notes = changes.notes || null
+  if (changes.zaloGroupThreadId !== undefined) updateRow.zalo_group_thread_id = changes.zaloGroupThreadId || null
+  if (changes.zaloGroupName !== undefined) updateRow.zalo_group_name = changes.zaloGroupName || null
+  if (changes.zaloLinkedAt !== undefined) updateRow.zalo_linked_at = changes.zaloLinkedAt || null
+  if (changes.zaloStatus !== undefined) updateRow.zalo_status = changes.zaloStatus || null
+
+  return updateRow
+}
+
+function mapTaskChangesToRow(changes: Partial<Task>) {
+  const updateRow: Record<string, unknown> = {}
+
+  if (changes.title !== undefined) updateRow.title = changes.title
+  if (changes.description !== undefined) updateRow.description = changes.description
+  if (changes.status !== undefined) updateRow.status = changes.status
+  if (changes.images !== undefined) updateRow.images = changes.images
+  if (changes.deadline !== undefined) updateRow.deadline = changes.deadline
+  if (changes.estimatedDays !== undefined) updateRow.estimated_days = changes.estimatedDays
+  if (changes.startDate !== undefined) updateRow.start_date = changes.startDate || null
+  if (changes.completedAt !== undefined) updateRow.completed_at = changes.completedAt || null
+  if (changes.actualDays !== undefined) updateRow.actual_days = changes.actualDays ?? null
+  if (changes.updatedBy !== undefined) updateRow.updated_by = changes.updatedBy
+  if (changes.note !== undefined) updateRow.note = changes.note || null
+  if (changes.order !== undefined) updateRow.sort_order = changes.order
+  if (changes.fromTemplateId !== undefined) updateRow.from_template_id = changes.fromTemplateId || null
+  if (changes.assignee !== undefined) updateRow.assignee = changes.assignee || null
+  if (changes.taskDeadline !== undefined) updateRow.task_deadline = changes.taskDeadline || null
+  if (changes.createdAt !== undefined) updateRow.created_at = changes.createdAt
+  if (changes.updatedAt !== undefined) updateRow.updated_at = changes.updatedAt
+
+  return updateRow
+}
+
+async function syncProjectTasks(projectId: string, tasks: Task[]): Promise<void> {
+  const { data: existingTasks, error: existingTasksError } = await supabase
+    .from('tasks')
+    .select('id')
+    .eq('project_id', projectId)
+
+  if (existingTasksError) throw existingTasksError
+
+  const nextTaskIds = new Set(tasks.map((task) => task.id))
+  const taskIdsToDelete = (existingTasks || [])
+    .map((task) => task.id as string)
+    .filter((taskId) => !nextTaskIds.has(taskId))
+
+  if (taskIdsToDelete.length > 0) {
+    const { error: deleteTasksError } = await supabase
+      .from('tasks')
+      .delete()
+      .in('id', taskIdsToDelete)
+
+    if (deleteTasksError) throw deleteTasksError
+  }
+
+  if (tasks.length === 0) return
+
+  const { error: taskError } = await supabase
+    .from('tasks')
+    .upsert(tasks.map((task) => mapTaskToRow(task, projectId)), { onConflict: 'id' })
+
+  if (taskError) throw taskError
+}
+
+async function syncProjectAttachments(projectId: string, attachments: Attachment[]): Promise<void> {
+  const { data: existingAttachments, error: existingAttachmentsError } = await supabase
+    .from('attachments')
+    .select('id')
+    .eq('project_id', projectId)
+
+  if (existingAttachmentsError) throw existingAttachmentsError
+
+  const nextAttachmentIds = new Set(attachments.map((attachment) => attachment.id))
+  const attachmentIdsToDelete = (existingAttachments || [])
+    .map((attachment) => attachment.id as string)
+    .filter((attachmentId) => !nextAttachmentIds.has(attachmentId))
+
+  if (attachmentIdsToDelete.length > 0) {
+    const { error: deleteAttachmentsError } = await supabase
+      .from('attachments')
+      .delete()
+      .in('id', attachmentIdsToDelete)
+
+    if (deleteAttachmentsError) throw deleteAttachmentsError
+  }
+
+  if (attachments.length === 0) return
+
+  const { error: attachmentError } = await supabase
+    .from('attachments')
+    .upsert(attachments.map((attachment) => mapAttachmentToRow(attachment, projectId)), { onConflict: 'id' })
+
+  if (attachmentError) throw attachmentError
+}
+
+export async function createProjectRecord(project: Project): Promise<void> {
+  const { error: projectError } = await supabase
+    .from('projects')
+    .insert(mapProjectToRow(project))
+
+  if (projectError) throw projectError
+
+  await Promise.all([
+    syncProjectTasks(project.id, project.tasks),
+    syncProjectAttachments(project.id, project.attachments)
+  ])
+}
+
+export async function updateProjectRecord(projectId: string, changes: Partial<Project>): Promise<void> {
+  const updateRow = mapProjectChangesToRow(changes)
+
+  if (Object.keys(updateRow).length > 0) {
+    updateRow.updated_at = new Date().toISOString()
+
+    const { error } = await supabase
+      .from('projects')
+      .update(updateRow)
+      .eq('id', projectId)
+
+    if (error) throw error
+  }
+
+  const syncOperations: Promise<void>[] = []
+
+  if (changes.tasks !== undefined) {
+    syncOperations.push(syncProjectTasks(projectId, changes.tasks))
+  }
+
+  if (changes.attachments !== undefined) {
+    syncOperations.push(syncProjectAttachments(projectId, changes.attachments))
+  }
+
+  if (syncOperations.length > 0) {
+    await Promise.all(syncOperations)
+  }
+}
+
+export async function deleteProjectRecord(projectId: string): Promise<void> {
+  const { error } = await supabase
+    .from('projects')
+    .delete()
+    .eq('id', projectId)
+
+  if (error) throw error
+}
+
+export async function createTaskRecord(projectId: string, task: Task): Promise<void> {
+  const { error } = await supabase
+    .from('tasks')
+    .insert(mapTaskToRow(task, projectId))
+
+  if (error) throw error
+}
+
+export async function updateTaskRecord(taskId: string, changes: Partial<Task>): Promise<void> {
+  const updateRow = mapTaskChangesToRow(changes)
+
+  if (Object.keys(updateRow).length === 0) return
+
+  if (!('updated_at' in updateRow)) {
+    updateRow.updated_at = new Date().toISOString()
+  }
+
+  const { error } = await supabase
+    .from('tasks')
+    .update(updateRow)
+    .eq('id', taskId)
+
+  if (error) throw error
+}
+
+export async function deleteTaskRecord(taskId: string): Promise<void> {
+  const { error } = await supabase
+    .from('tasks')
+    .delete()
+    .eq('id', taskId)
+
+  if (error) throw error
+}
+
 export async function loadStaff(): Promise<Staff[]> {
   const { data, error } = await supabase
     .from('staff')

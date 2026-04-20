@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { User } from '../../types'
 import { Home, LayoutGrid, LogOut, ListChecks, Settings, Users } from 'lucide-react'
 import Button from '../ui/Button'
@@ -19,7 +19,9 @@ interface NavItem {
 
 export default function Sidebar({ user, onLogout }: SidebarProps) {
   const [logoError, setLogoError] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
   const pendingCount = useStaffStore((state) => state.staff.filter((item) => !item.isActive).length)
   const logoUrl = `${(import.meta as any).env?.BASE_URL || '/'}logo.png`
   const navItems: NavItem[] = [
@@ -33,10 +35,21 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
     navItems.push({ label: 'Cài đặt', to: '/settings', icon: Settings })
   }
 
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      await onLogout()
+      navigate('/login', { replace: true })
+    } catch (error) {
+      console.error('Logout error:', error)
+      setIsLoggingOut(false)
+    }
+  }
+
   return (
     <aside className="hidden w-80 shrink-0 flex-col gap-6 border-r border-slate-200 bg-white px-6 py-6 lg:flex">
       <div>
-        <div className="mb-8 inline-flex items-center gap-3 text-2xl font-semibold text-brand-900">
+        <div className="mb-8 inline-flex items-center gap-3 text-2xl font-semibold text-blue-600">
           {!logoError ? (
             <img
               src={logoUrl}
@@ -45,7 +58,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               onError={() => setLogoError(true)}
             />
           ) : (
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-100 text-lg font-bold text-brand-900">C</span>
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-lg font-bold text-blue-600">C</span>
           )}
           ConstructTrack
         </div>
@@ -64,7 +77,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               key={item.to}
               to={item.to}
               className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
-                active ? 'bg-brand-900 text-white' : 'text-slate-700 hover:bg-slate-100'
+                active ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
               <Icon size={18} />
@@ -81,8 +94,15 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           <p>{user.name}</p>
           <p className="mt-1 text-xs text-slate-500">Dữ liệu nhân sự và dự án đang đồng bộ theo Supabase</p>
         </div>
-        <Button type="button" variant="secondary" className="w-full justify-center" onClick={onLogout}>
-          <LogOut size={16} className="mr-2" /> Đăng xuất
+        <Button 
+          type="button" 
+          variant="secondary" 
+          className="w-full justify-center" 
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+        >
+          <LogOut size={16} className="mr-2" /> 
+          {isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
         </Button>
       </div>
     </aside>

@@ -171,14 +171,25 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     }
   }
 
-  const updateWebhook = () => {
-    updateProject(project.id, { webhookUrl })
-    showToast('Cập nhật webhook thành công', 'success')
+  const updateWebhook = async () => {
+    try {
+      await updateProject(project.id, { webhookUrl })
+      showToast('Cập nhật webhook thành công', 'success')
+    } catch (error) {
+      console.error('Error updating webhook:', error)
+      showToast('Cập nhật webhook thất bại', 'error')
+    }
   }
 
-  const saveProjectChanges = (updates: Partial<Project>) => {
-    updateProject(project.id, updates)
-    showToast('Cập nhật dự án thành công', 'success')
+  const saveProjectChanges = async (updates: Partial<Project>) => {
+    try {
+      await updateProject(project.id, updates)
+      showToast('Cập nhật dự án thành công', 'success')
+    } catch (error) {
+      console.error('Error updating project:', error)
+      showToast('Cập nhật dự án thất bại', 'error')
+      throw error
+    }
   }
 
   const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
@@ -278,7 +289,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
             onClick={() => setActiveTab('overview')}
             className={`px-4 py-2 rounded-2xl text-sm font-medium transition ${
               activeTab === 'overview'
-                ? 'bg-brand-900 text-white'
+                ? 'bg-blue-600 text-white'
                 : 'text-slate-700 hover:bg-slate-100'
             }`}
           >
@@ -288,7 +299,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
             onClick={() => setActiveTab('tasks')}
             className={`px-4 py-2 rounded-2xl text-sm font-medium transition ${
               activeTab === 'tasks'
-                ? 'bg-brand-900 text-white'
+                ? 'bg-blue-600 text-white'
                 : 'text-slate-700 hover:bg-slate-100'
             }`}
           >
@@ -298,7 +309,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
             onClick={() => setActiveTab('finance')}
             className={`px-4 py-2 rounded-2xl text-sm font-medium transition ${
               activeTab === 'finance'
-                ? 'bg-brand-900 text-white'
+                ? 'bg-blue-600 text-white'
                 : 'text-slate-700 hover:bg-slate-100'
             }`}
           >
@@ -308,7 +319,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
             onClick={() => setActiveTab('images')}
             className={`px-4 py-2 rounded-2xl text-sm font-medium transition ${
               activeTab === 'images'
-                ? 'bg-brand-900 text-white'
+                ? 'bg-blue-600 text-white'
                 : 'text-slate-700 hover:bg-slate-100'
             }`}
           >
@@ -324,7 +335,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
                 <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-sm text-slate-500">Khách hàng</p>
                   {customer ? (
-                    <button type="button" className="mt-2 text-sm font-semibold text-brand-900 underline" onClick={() => navigate(`/customers/${customer.id}`)}>
+                    <button type="button" className="mt-2 text-sm font-semibold text-blue-600 underline" onClick={() => navigate(`/customers/${customer.id}`)}>
                       {customer.fullName}
                     </button>
                   ) : (

@@ -124,7 +124,7 @@ export default function PersonnelDetail({ showToast }: PersonnelDetailProps) {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.18em] text-brand-500">Nhân sự</p>
+          <p className="text-sm uppercase tracking-[0.18em] text-blue-600">Nhân sự</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-900">{member.name}</h1>
           <div className="mt-3 flex items-center gap-3">
             <Badge label={statusLabel[member.isActive ? 'active' : 'pending']} type={badgeType[member.isActive ? 'active' : 'pending']} />
@@ -217,7 +217,7 @@ export default function PersonnelDetail({ showToast }: PersonnelDetailProps) {
                     }}
                   />
                   <span>{project.name}</span>
-                  <Link to={`/projects/${project.id}`} className="ml-auto text-brand-700 underline">Xem dự án</Link>
+                  <Link to={`/projects/${project.id}`} className="ml-auto text-blue-600 underline">Xem dự án</Link>
                 </label>
               ))}
             </div>

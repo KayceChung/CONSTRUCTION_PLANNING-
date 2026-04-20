@@ -7,7 +7,7 @@ interface ProjectEditModalProps {
   isOpen: boolean
   project: Project
   onClose: () => void
-  onSave: (updates: Partial<Project>) => void
+  onSave: (updates: Partial<Project>) => Promise<void>
 }
 
 export default function ProjectEditModal({ isOpen, project, onClose, onSave }: ProjectEditModalProps) {
@@ -22,6 +22,7 @@ export default function ProjectEditModal({ isOpen, project, onClose, onSave }: P
   const [paidAmount, setPaidAmount] = useState(String(project.paidAmount || 0))
   const [paymentNote, setPaymentNote] = useState(project.paymentNote || '')
   const [category, setCategory] = useState(project.category)
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (project) {
@@ -41,26 +42,34 @@ export default function ProjectEditModal({ isOpen, project, onClose, onSave }: P
 
   if (!isOpen) return null
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (isSaving) return
+
     const contractValueNumber = Number(contractValue.replace(/[^0-9.-]/g, '')) || 0
     const paidAmountNumber = Number(paidAmount.replace(/[^0-9.-]/g, '')) || 0
-    onSave({
-      name,
-      category,
-      address: {
-        ...project.address,
-        fullAddress,
-        ward: ward || undefined,
-        district: district || undefined,
-        province,
-      },
-      startDate,
-      endDate,
-      contractValue: contractValueNumber,
-      paidAmount: paidAmountNumber,
-      paymentNote: paymentNote || undefined,
-    })
-    onClose()
+
+    setIsSaving(true)
+    try {
+      await onSave({
+        name,
+        category,
+        address: {
+          ...project.address,
+          fullAddress,
+          ward: ward || undefined,
+          district: district || undefined,
+          province,
+        },
+        startDate,
+        endDate,
+        contractValue: contractValueNumber,
+        paidAmount: paidAmountNumber,
+        paymentNote: paymentNote || undefined,
+      })
+      onClose()
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -187,11 +196,11 @@ export default function ProjectEditModal({ isOpen, project, onClose, onSave }: P
         </div>
 
         <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <Button type="button" variant="secondary" onClick={onClose} disabled={isSaving}>
             Hủy
           </Button>
-          <Button type="button" onClick={handleSave}>
-            Lưu thay đổi
+          <Button type="button" onClick={() => void handleSave()} disabled={isSaving}>
+            {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
           </Button>
         </div>
       </div>

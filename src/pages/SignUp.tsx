@@ -128,7 +128,7 @@ export default function SignUp() {
   return (
     <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-md flex-col justify-center gap-8 rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl">
       <div>
-        <p className="text-sm uppercase tracking-[0.24em] text-brand-500">ConstructTrack</p>
+        <p className="text-sm uppercase tracking-[0.24em] text-blue-600">ConstructTrack</p>
         <h1 className="mt-4 text-4xl font-semibold text-slate-900">Tạo tài khoản</h1>
         <p className="mt-3 text-slate-600">Đăng ký tài khoản mới để bắt đầu</p>
         {user ? (
@@ -147,7 +147,7 @@ export default function SignUp() {
             value={form.name}
             onChange={handleChange}
             placeholder="Nhập họ tên"
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             required
           />
         </div>
@@ -160,7 +160,7 @@ export default function SignUp() {
             value={form.email}
             onChange={handleChange}
             placeholder="Nhập email"
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             required
           />
         </div>
@@ -173,7 +173,7 @@ export default function SignUp() {
             value={form.phone}
             onChange={handleChange}
             placeholder="Nhập số điện thoại"
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             required
           />
         </div>
@@ -186,7 +186,7 @@ export default function SignUp() {
             value={form.password}
             onChange={handleChange}
             placeholder="Nhập mật khẩu (ít nhất 6 ký tự)"
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             required
           />
         </div>
@@ -199,7 +199,7 @@ export default function SignUp() {
             value={form.confirmPassword}
             onChange={handleChange}
             placeholder="Nhập lại mật khẩu"
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             required
           />
         </div>
