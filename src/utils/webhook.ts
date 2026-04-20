@@ -105,20 +105,9 @@ export async function sendWebhook(
   // Get category name: from projectType if available, otherwise use categoryMap
   const categoryName = project.projectType?.name || categoryMap[project.category] || project.category
 
-  // Convert base64 images to public URLs for Zalo
-  const publicImageUrls = await Promise.all(
-    (task.images || []).map((img, index) => convertBase64ToUrl(img, project.id, task.id, index))
-  )
-
-  // Filter valid URLs only
-  const imageUrlsArray = publicImageUrls.filter(url => {
-    try {
-      new URL(url)
-      return true
-    } catch {
-      return false
-    }
-  })
+  // Send base64 images directly to n8n (no bucket needed)
+  // n8n will handle uploading to Google Drive, OneDrive, etc.
+  const imageBase64Array = task.images || []
 
   const payload = {
     event,
@@ -150,11 +139,9 @@ export async function sendWebhook(
       updatedBy: task.updatedBy,
       updatedAt: task.updatedAt,
       createdAt: task.createdAt,
-      images: imageUrlsArray.length,
-      imageUrls: imageUrlsArray,
-      imageUrlsCsv: imageUrlsArray.join(','),
-      imageUrlsJson: imageUrlsArray,
-      hasImages: imageUrlsArray.length > 0,
+      imageCount: imageBase64Array.length,
+      imageBase64Array: imageBase64Array,
+      hasImages: imageBase64Array.length > 0,
       deadline: task.deadline,
       estimatedDays: task.estimatedDays,
       startDate: task.startDate || null,
@@ -236,10 +223,8 @@ export async function sendTestWebhook(project: Project & { projectType?: { name:
       updatedBy: 'System Test',
       updatedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
-      images: 0,
-      imageUrls: [],
-      imageUrlsCsv: '',
-      imageUrlsJson: [],
+      imageCount: 0,
+      imageBase64Array: [],
       hasImages: false,
       deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       estimatedDays: 10,
