@@ -3,7 +3,7 @@ export const WEBHOOK_CONFIG = {
   N8N_BASE_URL: ((import.meta as any).env?.VITE_N8N_WEBHOOK_URL || 'https://yi7a1c8g.rpcld.co/webhook/b44613c6-4148-4497-b1fe-298d6d84060d'),
 
   // Default webhook for task status updates (không cần cấu hình, tự động gửi)
-  DEFAULT_TASK_WEBHOOK: 'https://yi7a1c8g.rpcld.co/webhook-test/00b8a546-422b-4786-ad00-0105bb20c435',
+  DEFAULT_TASK_WEBHOOK: 'https://yi7a1c8g.rpcld.co/webhook/00b8a546-422b-4786-ad00-0105bb20c435',
 
   // Endpoints relative to base URL
   ENDPOINTS: {
