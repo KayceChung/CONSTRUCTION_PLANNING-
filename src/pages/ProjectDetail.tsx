@@ -98,41 +98,12 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     }
   }, [project?.id])
 
-  // Show loading state
-  if (projectsLoading) {
-    return (
-      <div className="rounded-3xl bg-white p-8 text-center shadow-sm">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-slate-700">⏳ Đang tải dữ liệu dự án...</p>
-      </div>
-    )
-  }
-
-  // Show error/not found with recovery options
-  if (!project || !user) {
-    return (
-      <div className="rounded-3xl bg-white p-8 text-center shadow-sm max-w-md mx-auto">
-        <div className="text-4xl mb-4">❌</div>
-        <p className="text-slate-700 font-semibold">Dự án không tồn tại</p>
-        <p className="text-sm text-slate-500 mt-2">Dự án ID: {projectId || '(không xác định)'}</p>
-        <p className="text-xs text-slate-400 mt-1">Có thể dữ liệu chưa được tải hoặc dự án đã bị xóa.</p>
-        <div className="mt-6 flex flex-col gap-2">
-          <Button type="button" onClick={() => window.location.reload()}>
-            ↻ Tải lại trang
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => navigate('/projects')}>
-            ← Quay lại danh sách dự án
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  const progress = calculateProjectProgress(project)
-  const deadlineDays = daysUntil(project.endDate)
+  // Calculate values - move early returns AFTER all hooks
+  const progress = useMemo(() => project ? calculateProjectProgress(project) : 0, [project])
+  const deadlineDays = useMemo(() => project ? daysUntil(project.endDate) : null, [project])
 
   const saveTaskChanges = async (changes: Partial<Task>) => {
-    if (!selectedTask) return
+    if (!project || !user || !selectedTask) return
     const previousStatus = selectedTask.status
     const updatedTask: Partial<Task> = {
       ...changes,
@@ -161,6 +132,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   }
 
   const uploadImages = async (files: FileList) => {
+    if (!project) return
     try {
       // Nén các ảnh trước khi lưu
       const compressedImages = await compressImages(files)
@@ -194,7 +166,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     }
   }
 
-  const activeTaskCount = useMemo(() => project.tasks.filter((task) => task.status !== 'cancelled').length, [project.tasks])
+  const activeTaskCount = useMemo(() => project ? project.tasks.filter((task) => task.status !== 'cancelled').length : 0, [project?.tasks])
   const nextWeight = activeTaskCount > 0 ? Math.round(100 / (activeTaskCount + 1)) : 0
 
   // Collect all images from all tasks
@@ -218,6 +190,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   }, [project?.tasks])
 
   const createTask = (data: { title: string; description?: string; startDate: string; estimatedDays: number; deadline?: string }) => {
+    if (!project || !user) return
     const task: Task = {
       id: uuidv4(),
       title: data.title,
@@ -242,6 +215,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   }
 
   const updateWebhook = async () => {
+    if (!project) return
     try {
       await updateProject(project.id, { webhookUrl })
       showToast('Cập nhật webhook thành công', 'success')
@@ -266,6 +240,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   }
 
   const saveProjectChanges = async (updates: Partial<Project>) => {
+    if (!project || !user) return
     try {
       await updateProject(project.id, updates)
       showToast('Cập nhật dự án thành công', 'success')
@@ -277,6 +252,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   }
 
   const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
+    if (!project || !user) return
     const task = project.tasks.find((item) => item.id === taskId)
     if (!task) return
     if (user.role === 'supervisor' && !['in_progress', 'done', 'adjustment', 'pending'].includes(newStatus)) {
@@ -304,6 +280,66 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     sendWebhook(getProjectWithType({ ...project, tasks: project.tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)) }), { ...task, status: newStatus } as Task, 'status_changed', task.status).catch(() => {
       showToast('Webhook gửi thất bại', 'error')
     })
+  }
+
+  // Show loading state
+  if (projectsLoading) {
+    return (
+      <div className="rounded-3xl bg-white p-8 text-center shadow-sm">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-slate-700">⏳ Đang tải dữ liệu dự án...</p>
+      </div>
+    )
+  }
+
+  // Show error/not found with recovery options
+  if (!project || !user) {
+    return (
+      <div className="rounded-3xl bg-white p-8 text-center shadow-sm max-w-md mx-auto">
+        <div className="text-4xl mb-4">❌</div>
+        <p className="text-slate-700 font-semibold">Dự án không tồn tại</p>
+        <p className="text-sm text-slate-500 mt-2">Dự án ID: {projectId || '(không xác định)'}</p>
+        <p className="text-xs text-slate-400 mt-1">Có thể dữ liệu chưa được tải hoặc dự án đã bị xóa.</p>
+        <div className="mt-6 flex flex-col gap-2">
+          <Button type="button" onClick={() => window.location.reload()}>
+            ↻ Tải lại trang
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => navigate('/projects')}>
+            ← Quay lại danh sách dự án
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading state
+  if (projectsLoading) {
+    return (
+      <div className="rounded-3xl bg-white p-8 text-center shadow-sm">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-slate-700">⏳ Đang tải dữ liệu dự án...</p>
+      </div>
+    )
+  }
+
+  // Show error/not found with recovery options
+  if (!project || !user) {
+    return (
+      <div className="rounded-3xl bg-white p-8 text-center shadow-sm max-w-md mx-auto">
+        <div className="text-4xl mb-4">❌</div>
+        <p className="text-slate-700 font-semibold">Dự án không tồn tại</p>
+        <p className="text-sm text-slate-500 mt-2">Dự án ID: {projectId || '(không xác định)'}</p>
+        <p className="text-xs text-slate-400 mt-1">Có thể dữ liệu chưa được tải hoặc dự án đã bị xóa.</p>
+        <div className="mt-6 flex flex-col gap-2">
+          <Button type="button" onClick={() => window.location.reload()}>
+            ↻ Tải lại trang
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => navigate('/projects')}>
+            ← Quay lại danh sách dự án
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -445,8 +481,8 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
                 <p className="text-sm text-slate-500">Tiến độ dự án</p>
                 <h2 className="mt-2 text-3xl font-semibold text-slate-900">{progress}%</h2>
               </div>
-              <div className={`rounded-3xl px-4 py-3 text-sm font-semibold text-white ${deadlineDays <= 7 ? 'bg-rose-500' : 'bg-slate-700'}`}>
-                {deadlineDays <= 7 ? 'Deadline gần' : `${deadlineDays} ngày còn lại`}
+              <div className={`rounded-3xl px-4 py-3 text-sm font-semibold text-white ${(deadlineDays || 0) <= 7 ? 'bg-rose-500' : 'bg-slate-700'}`}>
+                {(deadlineDays || 0) <= 7 ? 'Deadline gần' : `${deadlineDays} ngày còn lại`}
               </div>
             </div>
             <ProgressBar value={progress} />
