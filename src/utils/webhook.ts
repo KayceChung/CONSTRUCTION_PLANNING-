@@ -31,40 +31,49 @@ async function convertBase64ToUrl(base64String: string, projectId: string, taskI
 
     // Nếu là base64 DataURL, convert thành file và upload
     if (base64String.startsWith('data:')) {
-      const [header, data] = base64String.split(',')
-      const mimeMatch = header.match(/data:([^;]+)/)
-      const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
-      const ext = mimeType.split('/')[1] || 'jpg'
-      
-      // Decode base64 to binary
-      const binaryString = atob(data)
-      const bytes = new Uint8Array(binaryString.length)
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i)
+      try {
+        const [header, data] = base64String.split(',')
+        const mimeMatch = header.match(/data:([^;]+)/)
+        const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+        const ext = mimeType.split('/')[1] || 'jpg'
+        
+        // Decode base64 to binary
+        const binaryString = atob(data)
+        const bytes = new Uint8Array(binaryString.length)
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i)
+        }
+        const blob = new Blob([bytes], { type: mimeType })
+
+        // Upload to Supabase
+        const timestamp = Date.now()
+        const fileName = `${projectId}/${taskId}/image-${timestamp}-${index}.${ext}`
+        
+        console.log(`📤 Uploading image: ${fileName}`)
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('task-images')
+          .upload(fileName, blob, { 
+            upsert: false,
+            contentType: mimeType
+          })
+
+        if (uploadError) {
+          console.error('❌ Upload base64 ảnh thất bại:', uploadError)
+          return base64String // Fallback: return base64 nếu upload thất bại
+        }
+
+        // Get public URL
+        const { data: publicUrlData } = supabase.storage
+          .from('task-images')
+          .getPublicUrl(uploadData.path)
+
+        console.log(`✅ Ảnh uploaded thành công: ${publicUrlData.publicUrl}`)
+        return publicUrlData.publicUrl
+      } catch (e) {
+        console.error('❌ Error in base64 conversion:', e)
+        return base64String
       }
-      const blob = new Blob([bytes], { type: mimeType })
-
-      // Upload to Supabase
-      const timestamp = Date.now()
-      const fileName = `${projectId}/${taskId}/image-${timestamp}-${index}.${ext}`
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('task-images')
-        .upload(fileName, blob, { 
-          upsert: false,
-          contentType: mimeType
-        })
-
-      if (uploadError) {
-        console.error('❌ Upload base64 ảnh thất bại:', uploadError)
-        return base64String // Fallback: return base64 nếu upload thất bại
-      }
-
-      // Get public URL
-      const { data: publicUrlData } = supabase.storage
-        .from('task-images')
-        .getPublicUrl(uploadData.path)
-
-      return publicUrlData.publicUrl
     }
 
     return base64String
