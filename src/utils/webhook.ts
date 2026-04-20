@@ -62,7 +62,9 @@ export async function sendWebhook(
       endDate: project.endDate,
       progress: calculateProjectProgress(project),
       taskCount: project.tasks.length,
-      zalo_thread_id: project.zalo_thread_id || null,
+      zaloGroupThreadId: project.zaloGroupThreadId || null,
+      zaloGroupName: project.zaloGroupName || null,
+      zaloStatus: project.zaloStatus || null,
       completedCount: project.tasks.filter(t => t.status === 'done').length
     },
     task: {
@@ -142,6 +144,9 @@ export async function sendTestWebhook(project: Project & { projectType?: { name:
       endDate: project.endDate,
       progress: calculateProjectProgress(project),
       taskCount: project.tasks.length,
+      zaloGroupThreadId: project.zaloGroupThreadId || null,
+      zaloGroupName: project.zaloGroupName || null,
+      zaloStatus: project.zaloStatus || null,
       completedCount: project.tasks.filter(t => t.status === 'done').length
     },
     task: {
