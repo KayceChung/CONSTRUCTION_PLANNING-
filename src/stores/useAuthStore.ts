@@ -73,7 +73,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   logout: async () => {
     // Clear user state first for immediate UI update
-    set({ user: null })
+    set({ user: null, loading: false })
+    
+    // Clear local storage
+    try {
+      localStorage.clear()
+      sessionStorage.clear()
+    } catch (e) {
+      console.error('Error clearing storage:', e)
+    }
     
     // Then sign out from Supabase
     const { error } = await supabase.auth.signOut()
