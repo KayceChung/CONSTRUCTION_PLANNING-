@@ -72,19 +72,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (error) throw error
   },
   logout: async () => {
-    // Clear user state first for immediate UI update
-    set({ user: null, loading: false })
-    
-    // Clear local storage
     try {
+      // 1. Clear user state IMMEDIATELY
+      set({ user: null, loading: false })
+      
+      // 2. Clear ALL storage (localStorage, sessionStorage, cookies, IndexedDB)
       localStorage.clear()
       sessionStorage.clear()
+      
+      // Clear cookies
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`)
+      })
+      
+      // Clear IndexedDB if exists (Supabase might use it)
+      const dbs = await (window.indexedDB.databases?.() || [])
+      for (const db of dbs) {
+        window.indexedDB.deleteDatabase(db.name)
+      }
     } catch (e) {
-      console.error('Error clearing storage:', e)
+      console.warn('Error clearing storage:', e)
     }
     
-    // Then sign out from Supabase
+    // 3. Sign out from Supabase
     const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    if (error) {
+      console.error('Supabase signout error:', error)
+    }
+    
+    // 4. Force hard reload to clear all cache
+    window.location.href = '/login'
   }
 }))

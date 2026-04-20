@@ -3,9 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ConstructTrack</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="alternate icon" type="image/png" href="/logo.png" />
+    <meta name="theme-color" content="#0284c7" />
+    <meta name="description" content="ConstructTrack - Hệ thống quản lý dự án xây dựng" />
+    <title>ConstructTrack - Quản lý Dự án Xây dựng</title>
+    
+    <!-- Favicon - PNG works as favicon in modern browsers -->
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="shortcut icon" href="/logo.png" />
+    
+    <!-- Cache control - Force fresh load -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -13,5 +25,14 @@
   <body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Force logout on page load if no auth token -->
+    <script>
+      if (!localStorage.getItem('sb-auth-token') && window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.replace('/login');
+      }
+    </script>
   </body>
 </html>
