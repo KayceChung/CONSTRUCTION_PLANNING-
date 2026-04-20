@@ -88,7 +88,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Clear IndexedDB if exists (Supabase might use it)
       const dbs = await (window.indexedDB.databases?.() || [])
       for (const db of dbs) {
-        window.indexedDB.deleteDatabase(db.name)
+        if (db.name) {
+          window.indexedDB.deleteDatabase(db.name)
+        }
       }
     } catch (e) {
       console.warn('Error clearing storage:', e)
