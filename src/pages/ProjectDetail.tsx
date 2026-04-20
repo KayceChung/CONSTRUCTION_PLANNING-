@@ -155,6 +155,26 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   const activeTaskCount = useMemo(() => project.tasks.filter((task) => task.status !== 'cancelled').length, [project.tasks])
   const nextWeight = activeTaskCount > 0 ? Math.round(100 / (activeTaskCount + 1)) : 0
 
+  // Collect all images from all tasks
+  const projectImages = useMemo(() => {
+    if (!project || !project.tasks) return []
+    const images: Array<{ id: string; taskId: string; taskTitle: string; imageData: string; uploadedAt?: string }> = []
+    project.tasks.forEach((task) => {
+      if (task.images && task.images.length > 0) {
+        task.images.forEach((imageData, index) => {
+          images.push({
+            id: `${task.id}-${index}`,
+            taskId: task.id,
+            taskTitle: task.title,
+            imageData,
+            uploadedAt: task.updatedAt
+          })
+        })
+      }
+    })
+    return images
+  }, [project?.tasks])
+
   const createTask = (data: { title: string; description?: string; startDate: string; estimatedDays: number; deadline?: string }) => {
     const task: Task = {
       id: uuidv4(),
@@ -505,19 +525,41 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
         {/* Images Tab */}
         {activeTab === 'images' && (
           <div className="p-6 space-y-4">
-            {(!project.attachments || project.attachments.length === 0) ? (
-              <p className="text-sm text-slate-600">Chưa có hình ảnh đính kèm.</p>
+            {(!projectImages || projectImages.length === 0) ? (
+              <div className="text-center py-12">
+                <p className="text-sm text-slate-600">📸 Chưa có hình ảnh nào được tải lên</p>
+                <p className="text-xs text-slate-500 mt-2">Tải hình ảnh từ từng công việc trong tab "Hình ảnh" của task</p>
+              </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {project.attachments.filter(f => f.type === 'image').map((file) => (
-                  <div key={file.id} className="rounded-2xl border border-slate-200 overflow-hidden">
-                    <img src={file.url} alt={file.name} className="w-full h-48 object-cover" />
-                    <div className="p-3">
-                      <p className="text-sm font-semibold text-slate-900 truncate">{file.name}</p>
-                      <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
+              <div>
+                <div className="mb-4 p-3 bg-blue-50 rounded-2xl border border-blue-200">
+                  <p className="text-sm font-semibold text-blue-900">📁 Tổng cộng: {projectImages.length} hình ảnh</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {projectImages.map((item) => (
+                    <div key={item.id} className="rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition">
+                      <div className="relative bg-slate-100 w-full h-48 overflow-hidden">
+                        {item.imageData.startsWith('data:image/') ? (
+                          <img src={item.imageData} alt={`${item.taskTitle}`} className="w-full h-full object-cover" />
+                        ) : item.imageData.startsWith('data:video/') ? (
+                          <video src={item.imageData} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-slate-200">
+                            <span className="text-slate-500">🎬 Video</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <p className="text-sm font-semibold text-slate-900 truncate" title={item.taskTitle}>
+                          📋 {item.taskTitle}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          🕐 {item.uploadedAt ? formatDate(item.uploadedAt) : 'Không rõ thời gian'}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
