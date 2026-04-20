@@ -74,6 +74,13 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     }
   }, [])
 
+  // Initialize webhook URL from project
+  useEffect(() => {
+    if (project && project.webhookUrl) {
+      setWebhookUrl(project.webhookUrl)
+    }
+  }, [project?.id])
+
   if (!project || !user) {
 
     return (
@@ -426,6 +433,58 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
                     <p className="mt-1">{member.role === 'manager' ? 'Quản lý' : 'Giám sát'}</p>
                   </div>
                 )) : <p className="text-sm text-slate-500">Chưa có nhân sự nào được phân công vào dự án này.</p>}
+              </div>
+            </div>
+
+            {/* Webhook Settings */}
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-slate-700">🔗 Webhook - Nhận thông báo cập nhật</p>
+                  <p className="mt-1 text-xs text-slate-600">Khi các đầu việc thay đổi trạng thái, một yêu cầu POST JSON sẽ được gửi tới URL của bạn</p>
+                </div>
+              </div>
+              <div className="mt-4 space-y-2">
+                <input
+                  type="url"
+                  placeholder="https://example.com/webhook"
+                  value={webhookUrl || project.webhookUrl || ''}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={updateWebhook}
+                    className="flex-1 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                  >
+                    💾 Lưu Webhook
+                  </button>
+                </div>
+              </div>
+              <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-3">
+                <p className="text-xs font-semibold text-blue-900">📋 Webhook Payload:</p>
+                <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-xs text-slate-700">
+{`{
+  "event": "status_changed",
+  "timestamp": "2026-04-21T...",
+  "project": {
+    "id": "...",
+    "name": "...",
+    "progress": 50
+  },
+  "task": {
+    "id": "...",
+    "title": "...",
+    "previousStatus": "todo",
+    "newStatus": "in_progress",
+    "updatedBy": "...",
+    "deadline": "2026-05-01",
+    "daysRemaining": 10,
+    "isOverdue": false
+  }
+}`}
+                </pre>
               </div>
             </div>
           </div>
