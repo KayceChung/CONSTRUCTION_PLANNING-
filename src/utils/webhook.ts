@@ -1,6 +1,7 @@
 import { Project, Task, TaskStatus } from '../types'
 import { calculateProjectProgress } from './progress'
 import { WEBHOOK_CONFIG } from '../config/webhooks'
+import { supabase } from './supabase'
 
 async function postJsonWebhook(url: string, payload: unknown): Promise<void> {
   const response = await fetch(url, {
@@ -13,6 +14,63 @@ async function postJsonWebhook(url: string, payload: unknown): Promise<void> {
 
   if (!response.ok) {
     throw new Error(`Webhook lỗi ${response.status}`)
+  }
+}
+
+/**
+ * Convert base64 image to public Supabase URL
+ * Nếu ảnh đã là URL (http/https), trả về nguyên
+ * Nếu là base64 DataURL, upload lên Supabase và trả về public URL
+ */
+async function convertBase64ToUrl(base64String: string, projectId: string, taskId: string, index: number): Promise<string> {
+  try {
+    // Nếu đã là URL công khai, trả về nguyên
+    if (base64String.startsWith('http://') || base64String.startsWith('https://')) {
+      return base64String
+    }
+
+    // Nếu là base64 DataURL, convert thành file và upload
+    if (base64String.startsWith('data:')) {
+      const [header, data] = base64String.split(',')
+      const mimeMatch = header.match(/data:([^;]+)/)
+      const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+      const ext = mimeType.split('/')[1] || 'jpg'
+      
+      // Decode base64 to binary
+      const binaryString = atob(data)
+      const bytes = new Uint8Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+      const blob = new Blob([bytes], { type: mimeType })
+
+      // Upload to Supabase
+      const timestamp = Date.now()
+      const fileName = `${projectId}/${taskId}/image-${timestamp}-${index}.${ext}`
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('task-images')
+        .upload(fileName, blob, { 
+          upsert: false,
+          contentType: mimeType
+        })
+
+      if (uploadError) {
+        console.error('❌ Upload base64 ảnh thất bại:', uploadError)
+        return base64String // Fallback: return base64 nếu upload thất bại
+      }
+
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('task-images')
+        .getPublicUrl(uploadData.path)
+
+      return publicUrlData.publicUrl
+    }
+
+    return base64String
+  } catch (error) {
+    console.error('❌ Error converting base64 to URL:', error)
+    return base64String
   }
 }
 
@@ -47,6 +105,21 @@ export async function sendWebhook(
   // Get category name: from projectType if available, otherwise use categoryMap
   const categoryName = project.projectType?.name || categoryMap[project.category] || project.category
 
+  // Convert base64 images to public URLs for Zalo
+  const publicImageUrls = await Promise.all(
+    (task.images || []).map((img, index) => convertBase64ToUrl(img, project.id, task.id, index))
+  )
+
+  // Filter valid URLs only
+  const imageUrlsArray = publicImageUrls.filter(url => {
+    try {
+      new URL(url)
+      return true
+    } catch {
+      return false
+    }
+  })
+
   const payload = {
     event,
     timestamp: new Date().toISOString(),
@@ -77,9 +150,11 @@ export async function sendWebhook(
       updatedBy: task.updatedBy,
       updatedAt: task.updatedAt,
       createdAt: task.createdAt,
-      images: task.images.length,
-      imageUrls: task.images || [],
-      imageUrlsCsv: (task.images || []).join(','),
+      images: imageUrlsArray.length,
+      imageUrls: imageUrlsArray,
+      imageUrlsCsv: imageUrlsArray.join(','),
+      imageUrlsJson: imageUrlsArray,
+      hasImages: imageUrlsArray.length > 0,
       deadline: task.deadline,
       estimatedDays: task.estimatedDays,
       startDate: task.startDate || null,
@@ -164,6 +239,8 @@ export async function sendTestWebhook(project: Project & { projectType?: { name:
       images: 0,
       imageUrls: [],
       imageUrlsCsv: '',
+      imageUrlsJson: [],
+      hasImages: false,
       deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       estimatedDays: 10,
       startDate: new Date().toISOString().slice(0, 10),
