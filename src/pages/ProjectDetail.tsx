@@ -15,7 +15,7 @@ import CreateTaskModal from '../components/modals/CreateTaskModal'
 import ProjectEditModal from '../components/modals/ProjectEditModal'
 import KanbanBoard from '../components/kanban/KanbanBoard'
 import { calculateProjectProgress, formatDate, daysUntil } from '../utils/progress'
-import { sendWebhook } from '../utils/webhook'
+import { sendWebhook, sendTestWebhook } from '../utils/webhook'
 import { exportProjectPdf } from '../utils/pdfReport'
 import { compressImages, getBase64Size, formatFileSize } from '../utils/imageCompression'
 import { sendZaloNotification, checkDeadlineWarnings, createZaloGroupForProject } from '../lib/webhook-service'
@@ -50,6 +50,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   const [showConfirm, setShowConfirm] = useState(false)
   const [viewMode, setViewMode] = useState<'kanban' | 'timeline'>('kanban')
   const [webhookUrl, setWebhookUrl] = useState('')
+  const [sendingTestWebhook, setSendingTestWebhook] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'finance' | 'images' | 'logs'>('overview')
 
   const customers = useCustomerStore((state) => state.customers)
@@ -213,6 +214,20 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     } catch (error) {
       console.error('Error updating webhook:', error)
       showToast('Cập nhật webhook thất bại', 'error')
+    }
+  }
+
+  const handleSendTestWebhook = async () => {
+    if (!project) return
+    setSendingTestWebhook(true)
+    try {
+      await sendTestWebhook(project)
+      showToast('✅ Webhook test đã gửi thành công! Kiểm tra hệ thống nhận của bạn.', 'success')
+    } catch (error) {
+      console.error('Error sending test webhook:', error)
+      showToast('❌ Gửi webhook test thất bại. Vui lòng kiểm tra URL webhook.', 'error')
+    } finally {
+      setSendingTestWebhook(false)
     }
   }
 
@@ -459,6 +474,14 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
                     className="flex-1 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
                   >
                     💾 Lưu Webhook
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSendTestWebhook}
+                    disabled={sendingTestWebhook}
+                    className="flex-1 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:bg-slate-400"
+                  >
+                    {sendingTestWebhook ? '⏳ Đang gửi...' : '🧪 Gửi Webhook Test'}
                   </button>
                 </div>
               </div>

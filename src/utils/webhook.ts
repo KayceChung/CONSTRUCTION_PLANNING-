@@ -96,3 +96,69 @@ export async function sendWebhook(
     }
   }
 }
+
+/**
+ * Gửi webhook test/mẫu để kiểm tra cấu hình
+ */
+export async function sendTestWebhook(project: Project): Promise<void> {
+  const samplePayload = {
+    event: 'status_changed',
+    timestamp: new Date().toISOString(),
+    isTestPayload: true,
+    message: '🧪 Đây là payload kiểm tra webhook. Bạn có thể sử dụng mẫu này để kiểm tra hệ thống nhận webhook của mình.',
+    project: {
+      id: project.id,
+      name: project.name,
+      location: project.location,
+      client: project.client,
+      category: project.category,
+      contractValue: project.contractValue,
+      paidAmount: project.paidAmount,
+      startDate: project.startDate,
+      endDate: project.endDate,
+      progress: calculateProjectProgress(project),
+      taskCount: project.tasks.length,
+      completedCount: project.tasks.filter(t => t.status === 'done').length
+    },
+    task: {
+      id: 'task-sample-001',
+      title: 'Ví dụ: Xây dựng nền móng (Webhook Test)',
+      description: 'Đây là một mẫu thông tin đầu việc được gửi qua webhook',
+      previousStatus: 'todo',
+      newStatus: 'in_progress',
+      note: '🧪 Webhook test payload - Kiểm tra kết nối',
+      updatedBy: 'System Test',
+      updatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      images: 0,
+      deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      estimatedDays: 10,
+      startDate: new Date().toISOString().slice(0, 10),
+      completedAt: null,
+      actualDays: null,
+      isOverdue: false,
+      daysRemaining: 10,
+      assignee: null
+    }
+  }
+
+  // Send to default webhook
+  try {
+    await postJsonWebhook(WEBHOOK_CONFIG.DEFAULT_TASK_WEBHOOK, samplePayload)
+    console.log('✅ Test webhook mặc định gửi thành công')
+  } catch (error) {
+    console.error('❌ Test webhook mặc định thất bại:', error)
+    throw error
+  }
+
+  // Send to project webhook if different from default
+  if (project.webhookUrl && project.webhookUrl !== WEBHOOK_CONFIG.DEFAULT_TASK_WEBHOOK) {
+    try {
+      await postJsonWebhook(project.webhookUrl, samplePayload)
+      console.log('✅ Test webhook tùy chỉnh gửi thành công')
+    } catch (error) {
+      console.error('❌ Test webhook tùy chỉnh thất bại:', error)
+      throw error
+    }
+  }
+}
