@@ -267,46 +267,42 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
             </div>
 
             {/* Camera / Upload */}
-            {user.role === 'supervisor' && ['in_progress', 'done'].includes(task.status) ? (
-              <div className="rounded-3xl bg-slate-50 p-4">
-                <label className="block text-sm font-semibold text-slate-700 mb-3">Tải ảnh / Video</label>
+            <div className="rounded-3xl bg-slate-50 p-4">
+              <label className="block text-sm font-semibold text-slate-700 mb-3">Tải ảnh / Video</label>
 
-                <div className="space-y-2">
-                  <label className="block">
-                    <input
-                      type="file"
-                      accept="image/*,video/*"
-                      multiple
-                      className="hidden"
-                      onChange={(event) => handleFiles(event.target.files)}
-                    />
-                    <span className="block w-full bg-blue-100 hover:bg-blue-200 text-blue-700 font-semibold py-2 rounded-lg text-center cursor-pointer transition text-sm">
-                      📁 Chọn từ thư viện
-                    </span>
-                  </label>
+              <div className="space-y-2">
+                <label className="block">
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    className="hidden"
+                    onChange={(event) => handleFiles(event.target.files)}
+                  />
+                  <span className="block w-full bg-blue-100 hover:bg-blue-200 text-blue-700 font-semibold py-2 rounded-lg text-center cursor-pointer transition text-sm">
+                    📁 Chọn từ thư viện
+                  </span>
+                </label>
 
-                  <button
-                    type="button"
-                    onClick={() => setCameraMode('photo')}
-                    className="w-full bg-green-100 hover:bg-green-200 text-green-700 font-semibold py-2 rounded-lg transition text-sm"
-                  >
-                    📸 Chụp ảnh
-                  </button>
+                <button
+                  type="button"
+                  onClick={() => setCameraMode('photo')}
+                  className="w-full bg-green-100 hover:bg-green-200 text-green-700 font-semibold py-2 rounded-lg transition text-sm"
+                >
+                  📸 Chụp ảnh
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setCameraMode('video')}
-                    className="w-full bg-red-100 hover:bg-red-200 text-red-700 font-semibold py-2 rounded-lg transition text-sm"
-                  >
-                    🎥 Quay video
-                  </button>
-                </div>
-
-                <p className="mt-3 text-xs text-slate-500">💡 Chọn từ thư viện, chụp ảnh hoặc quay video trực tiếp từ thiết bị của bạn.</p>
+                <button
+                  type="button"
+                  onClick={() => setCameraMode('video')}
+                  className="w-full bg-red-100 hover:bg-red-200 text-red-700 font-semibold py-2 rounded-lg transition text-sm"
+                >
+                  🎥 Quay video
+                </button>
               </div>
-            ) : null}
 
-            {/* Buttons */}
+              <p className="mt-3 text-xs text-slate-500">💡 Chọn từ thư viện, chụp ảnh hoặc quay video trực tiếp từ thiết bị của bạn.</p>
+            </div>ns */}
             <div className="flex flex-wrap gap-3">
               <Button type="button" variant="ghost" className="border border-slate-200 text-slate-700" onClick={onClose}>
                 Hủy
