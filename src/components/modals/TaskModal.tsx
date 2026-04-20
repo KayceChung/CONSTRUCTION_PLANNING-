@@ -302,7 +302,9 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
               </div>
 
               <p className="mt-3 text-xs text-slate-500">💡 Chọn từ thư viện, chụp ảnh hoặc quay video trực tiếp từ thiết bị của bạn.</p>
-            </div>ns */}
+            </div>
+
+            {/* Buttons */}
             <div className="flex flex-wrap gap-3">
               <Button type="button" variant="ghost" className="border border-slate-200 text-slate-700" onClick={onClose}>
                 Hủy
