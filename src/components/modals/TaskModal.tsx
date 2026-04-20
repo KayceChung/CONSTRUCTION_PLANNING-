@@ -252,16 +252,47 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
             {user.role === 'supervisor' && ['in_progress', 'done'].includes(task.status) ? (
               <div className="rounded-3xl bg-slate-50 p-4">
                 <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <Video size={16} /> Upload ảnh / video
+                  <Video size={16} /> Tải ảnh / Video
                 </label>
-                <input
-                  type="file"
-                  accept="image/*,video/*"
-                  multiple
-                  className="mt-3 text-sm text-slate-600"
-                  onChange={(event) => handleFiles(event.target.files)}
-                />
-                <p className="mt-2 text-xs text-slate-500">Bạn có thể chọn nhiều ảnh và video cùng lúc.</p>
+                
+                {/* File upload */}
+                <div className="mt-3">
+                  <label className="block text-xs text-slate-600 mb-2">Chọn từ thư viện</label>
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    className="text-sm text-slate-600"
+                    onChange={(event) => handleFiles(event.target.files)}
+                  />
+                </div>
+
+                {/* Camera capture */}
+                <div className="mt-3 flex gap-2">
+                  <div className="flex-1">
+                    <label className="block text-xs text-slate-600 mb-2">Chụp ảnh</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="text-sm text-slate-600"
+                      onChange={(event) => handleFiles(event.target.files)}
+                    />
+                  </div>
+                  
+                  <div className="flex-1">
+                    <label className="block text-xs text-slate-600 mb-2">Quay video</label>
+                    <input
+                      type="file"
+                      accept="video/*"
+                      capture="environment"
+                      className="text-sm text-slate-600"
+                      onChange={(event) => handleFiles(event.target.files)}
+                    />
+                  </div>
+                </div>
+                
+                <p className="mt-3 text-xs text-slate-500">💡 Bạn có thể upload từ thư viện, chụp ảnh hoặc quay video trực tiếp từ thiết bị.</p>
               </div>
             ) : null}
 
