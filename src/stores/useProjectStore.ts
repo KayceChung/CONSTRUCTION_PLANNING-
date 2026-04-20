@@ -36,11 +36,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({ projects: next })
   },
   updateProject: async (projectId, changes) => {
-    await updateProjectRecord(projectId, changes)
-    const next = get().projects.map((project) =>
-      project.id === projectId ? { ...project, ...changes } : project
-    )
-    set({ projects: next })
+    try {
+      await updateProjectRecord(projectId, changes)
+      const next = get().projects.map((project) =>
+        project.id === projectId ? { ...project, ...changes } : project
+      )
+      set({ projects: next })
+    } catch (error) {
+      console.error(`❌ Error updating project ${projectId}:`, error)
+      throw error
+    }
   },
   deleteProject: async (projectId) => {
     await deleteProjectRecord(projectId)
@@ -55,15 +60,20 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({ projects: next })
   },
   updateTask: async (projectId, taskId, changes) => {
-    await updateTaskRecord(taskId, changes)
-    const next = get().projects.map((project) => {
-      if (project.id !== projectId) return project
-      const tasks = project.tasks.map((task) =>
-        task.id === taskId ? { ...task, ...changes, updatedAt: new Date().toISOString() } : task
-      )
-      return { ...project, tasks }
-    })
-    set({ projects: next })
+    try {
+      await updateTaskRecord(taskId, changes)
+      const next = get().projects.map((project) => {
+        if (project.id !== projectId) return project
+        const tasks = project.tasks.map((task) =>
+          task.id === taskId ? { ...task, ...changes, updatedAt: new Date().toISOString() } : task
+        )
+        return { ...project, tasks }
+      })
+      set({ projects: next })
+    } catch (error) {
+      console.error(`❌ Error updating task ${taskId}:`, error)
+      throw error
+    }
   },
   deleteTask: async (projectId, taskId) => {
     await deleteTaskRecord(taskId)

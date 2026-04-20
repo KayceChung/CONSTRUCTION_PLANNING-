@@ -41,6 +41,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   const projectId = params.projectId || ''
   const user = useAuthStore((state) => state.user)
   const projects = useProjectStore((state) => state.projects)
+  const projectsLoading = useProjectStore((state) => state.loading)
   const updateTask = useProjectStore((state) => state.updateTask)
   const updateProject = useProjectStore((state) => state.updateProject)
   const addTask = useProjectStore((state) => state.addTask)
@@ -93,14 +94,32 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     }
   }, [project?.id])
 
-  if (!project || !user) {
-
+  // Show loading state
+  if (projectsLoading) {
     return (
       <div className="rounded-3xl bg-white p-8 text-center shadow-sm">
-        <p className="text-slate-700">Dự án không tồn tại.</p>
-        <Button type="button" className="mt-4" onClick={() => navigate('/projects')}>
-          Quay lại danh sách
-        </Button>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-slate-700">⏳ Đang tải dữ liệu dự án...</p>
+      </div>
+    )
+  }
+
+  // Show error/not found with recovery options
+  if (!project || !user) {
+    return (
+      <div className="rounded-3xl bg-white p-8 text-center shadow-sm max-w-md mx-auto">
+        <div className="text-4xl mb-4">❌</div>
+        <p className="text-slate-700 font-semibold">Dự án không tồn tại</p>
+        <p className="text-sm text-slate-500 mt-2">Dự án ID: {projectId || '(không xác định)'}</p>
+        <p className="text-xs text-slate-400 mt-1">Có thể dữ liệu chưa được tải hoặc dự án đã bị xóa.</p>
+        <div className="mt-6 flex flex-col gap-2">
+          <Button type="button" onClick={() => window.location.reload()}>
+            ↻ Tải lại trang
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => navigate('/projects')}>
+            ← Quay lại danh sách dự án
+          </Button>
+        </div>
       </div>
     )
   }
