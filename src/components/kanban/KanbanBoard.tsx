@@ -13,12 +13,12 @@ interface KanbanBoardProps {
 }
 
 const columns: Array<{ id: TaskStatus; title: string; colorClass: string }> = [
-  { id: 'todo', title: 'Chưa bắt đầu', colorClass: 'border-gray-300 bg-gray-50' },
-  { id: 'in_progress', title: 'Đang thi công', colorClass: 'border-blue-400 bg-blue-50' },
-  { id: 'done', title: 'Hoàn thành', colorClass: 'border-emerald-400 bg-emerald-50' },
-  { id: 'adjustment', title: 'Điều chỉnh', colorClass: 'border-amber-400 bg-amber-50' },
-  { id: 'pending', title: 'Tạm dừng', colorClass: 'border-orange-400 bg-orange-50' },
-  { id: 'cancelled', title: 'Hủy bỏ', colorClass: 'border-rose-400 bg-rose-50' }
+  { id: 'todo', title: 'Chưa bắt đầu', colorClass: 'border-l-4 border-l-gray-400 bg-gray-50' },
+  { id: 'in_progress', title: 'Đang thi công', colorClass: 'border-l-4 border-l-blue-500 bg-blue-50' },
+  { id: 'done', title: 'Hoàn thành', colorClass: 'border-l-4 border-l-emerald-500 bg-emerald-50' },
+  { id: 'adjustment', title: 'Điều chỉnh', colorClass: 'border-l-4 border-l-amber-500 bg-amber-50' },
+  { id: 'pending', title: 'Tạm dừng', colorClass: 'border-l-4 border-l-orange-500 bg-orange-50' },
+  { id: 'cancelled', title: 'Hủy bỏ', colorClass: 'border-l-4 border-l-rose-500 bg-rose-50' }
 ]
 
 export default function KanbanBoard({ project, user, onOpenTask, onStatusChange }: KanbanBoardProps) {
@@ -62,20 +62,22 @@ export default function KanbanBoard({ project, user, onOpenTask, onStatusChange 
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="grid gap-4 overflow-x-auto pb-4 lg:grid-cols-6 lg:pr-4">
+      <div className="flex gap-5 overflow-x-auto pb-6 lg:flex-nowrap">
         {columns.map((column) => (
-          <KanbanColumn key={column.id} id={column.id} title={column.title} colorClass={column.colorClass}>
-            <SortableContext items={itemsByStatus[column.id].map((task) => task.id)} strategy={verticalListSortingStrategy}>
-              {itemsByStatus[column.id].map((task) => (
-                <KanbanCard
-                  key={task.id}
-                  task={task}
-                  totalTasks={activeTaskCount}
-                  onOpen={() => onOpenTask(task)}
-                />
-              ))}
-            </SortableContext>
-          </KanbanColumn>
+          <div key={column.id} className="min-w-sm flex-shrink-0 lg:flex-1">
+            <KanbanColumn id={column.id} title={column.title} colorClass={column.colorClass}>
+              <SortableContext items={itemsByStatus[column.id].map((task) => task.id)} strategy={verticalListSortingStrategy}>
+                {itemsByStatus[column.id].map((task) => (
+                  <KanbanCard
+                    key={task.id}
+                    task={task}
+                    totalTasks={activeTaskCount}
+                    onOpen={() => onOpenTask(task)}
+                  />
+                ))}
+              </SortableContext>
+            </KanbanColumn>
+          </div>
         ))}
       </div>
     </DndContext>
