@@ -16,8 +16,25 @@ async function postJsonWebhook(url: string, payload: unknown): Promise<void> {
   }
 }
 
+// Map task status to Vietnamese names
+const statusMap: Record<string, string> = {
+  'todo': 'Chưa bắt đầu',
+  'in_progress': 'Đang thi công',
+  'done': 'Hoàn thành',
+  'adjustment': 'Điều chỉnh',
+  'pending': 'Tạm dừng',
+  'cancelled': 'Hủy bỏ'
+}
+
+// Map project category to name
+const categoryMap: Record<string, string> = {
+  'new_construction': 'New Construction',
+  'renovation': 'Renovation',
+  'other': 'Other'
+}
+
 export async function sendWebhook(
-  project: Project,
+  project: Project & { projectType?: { name: string } },
   task: Task,
   event: 'task_created' | 'status_changed' | 'image_uploaded',
   previousStatus?: TaskStatus
@@ -27,6 +44,9 @@ export async function sendWebhook(
   const daysRemaining = deadlineDate ? Math.round((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null
   const isOverdue = daysRemaining !== null ? daysRemaining < 0 && task.status !== 'done' : false
 
+  // Get category name: from projectType if available, otherwise use categoryMap
+  const categoryName = project.projectType?.name || categoryMap[project.category] || project.category
+
   const payload = {
     event,
     timestamp: new Date().toISOString(),
@@ -35,21 +55,22 @@ export async function sendWebhook(
       name: project.name,
       location: project.location,
       client: project.client,
-      category: project.category,
+      category: categoryName,
       contractValue: project.contractValue,
       paidAmount: project.paidAmount,
       startDate: project.startDate,
       endDate: project.endDate,
       progress: calculateProjectProgress(project),
       taskCount: project.tasks.length,
+      zalo_thread_id: project.zalo_thread_id || null,
       completedCount: project.tasks.filter(t => t.status === 'done').length
     },
     task: {
       id: task.id,
       title: task.title,
       description: task.description,
-      previousStatus: previousStatus || null,
-      newStatus: task.status,
+      previousStatus: previousStatus ? statusMap[previousStatus] || previousStatus : null,
+      newStatus: statusMap[task.status] || task.status,
       note: task.note || '',
       updatedBy: task.updatedBy,
       updatedAt: task.updatedAt,
@@ -100,7 +121,10 @@ export async function sendWebhook(
 /**
  * Gửi webhook test/mẫu để kiểm tra cấu hình
  */
-export async function sendTestWebhook(project: Project): Promise<void> {
+export async function sendTestWebhook(project: Project & { projectType?: { name: string } }): Promise<void> {
+  // Get category name: from projectType if available, otherwise use categoryMap
+  const categoryName = project.projectType?.name || categoryMap[project.category] || project.category
+
   const samplePayload = {
     event: 'status_changed',
     timestamp: new Date().toISOString(),
@@ -111,7 +135,7 @@ export async function sendTestWebhook(project: Project): Promise<void> {
       name: project.name,
       location: project.location,
       client: project.client,
-      category: project.category,
+      category: categoryName,
       contractValue: project.contractValue,
       paidAmount: project.paidAmount,
       startDate: project.startDate,
@@ -124,8 +148,8 @@ export async function sendTestWebhook(project: Project): Promise<void> {
       id: 'task-sample-001',
       title: 'Ví dụ: Xây dựng nền móng (Webhook Test)',
       description: 'Đây là một mẫu thông tin đầu việc được gửi qua webhook',
-      previousStatus: 'todo',
-      newStatus: 'in_progress',
+      previousStatus: 'Chưa bắt đầu',
+      newStatus: 'Đang thi công',
       note: '🧪 Webhook test payload - Kiểm tra kết nối',
       updatedBy: 'System Test',
       updatedAt: new Date().toISOString(),

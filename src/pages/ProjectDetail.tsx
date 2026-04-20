@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useCustomerStore } from '../stores/useCustomerStore'
 import { useProjectStore } from '../stores/useProjectStore'
+import { useProjectTypeStore } from '../stores/useProjectTypeStore'
 import { useStaffStore } from '../stores/useStaffStore'
 import Header from '../components/layout/Header'
 import Button from '../components/ui/Button'
@@ -55,12 +56,22 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
 
   const customers = useCustomerStore((state) => state.customers)
   const staff = useStaffStore((state) => state.staff)
+  const projectTypes = useProjectTypeStore((state) => state.projectTypes)
   const project = useMemo(() => projects.find((item) => item.id === projectId) || null, [projects, projectId])
   const customer = useMemo(() => project ? customers.find((item) => item.id === project.customerId) || null : null, [customers, project])
   const assignedPersonnel = useMemo(
     () => staff.filter((item) => project?.assignedStaff.includes(item.id)),
     [project, staff]
   )
+  
+  // Helper: Get project with projectType data for webhook
+  const getProjectWithType = (p: Project) => {
+    const projectType = p.projectTypeId ? projectTypes.find((pt) => pt.id === p.projectTypeId) : undefined
+    return {
+      ...p,
+      projectType: projectType ? { name: projectType.name } : undefined
+    }
+  }
 
   const calculateDeadline = (startDate: string, estimatedDays: number) => {
     const date = new Date(startDate)
@@ -120,7 +131,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     showToast('Cập nhật công việc thành công', 'success')
     const updatedProject = useProjectStore.getState().projects.find((item) => item.id === project.id)
     if (updatedProject) {
-      sendWebhook(updatedProject, { ...selectedTask, ...updatedTask } as Task, 'status_changed', previousStatus).catch(() => {
+      sendWebhook(getProjectWithType(updatedProject), { ...selectedTask, ...updatedTask } as Task, 'status_changed', previousStatus).catch(() => {
         showToast('Webhook gửi thất bại', 'error')
       })
     }
@@ -150,7 +161,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
       // Gửi webhook khi có ảnh được upload
       const updatedProject = useProjectStore.getState().projects.find((item) => item.id === project.id)
       if (updatedProject) {
-        sendWebhook(updatedProject, { ...selectedTask, images: nextImages } as Task, 'image_uploaded').catch(() => {
+        sendWebhook(getProjectWithType(updatedProject), { ...selectedTask, images: nextImages } as Task, 'image_uploaded').catch(() => {
           showToast('⚠️ Ảnh đã lưu nhưng webhook gửi thất bại', 'error')
         })
       }
@@ -201,7 +212,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     addTask(project.id, task)
     showToast('Đã tạo hạng mục mới', 'success')
     if (project.webhookUrl) {
-      sendWebhook({ ...project, tasks: [...project.tasks, task] }, task, 'task_created').catch(() => {
+      sendWebhook(getProjectWithType({ ...project, tasks: [...project.tasks, task] }), task, 'task_created').catch(() => {
         showToast('Webhook gửi thất bại', 'error')
       })
     }
@@ -221,7 +232,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     if (!project) return
     setSendingTestWebhook(true)
     try {
-      await sendTestWebhook(project)
+      await sendTestWebhook(getProjectWithType(project))
       showToast('✅ Webhook test đã gửi thành công! Kiểm tra hệ thống nhận của bạn.', 'success')
     } catch (error) {
       console.error('Error sending test webhook:', error)
@@ -267,7 +278,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
       timestamp: new Date().toISOString(),
     })
 
-    sendWebhook({ ...project, tasks: project.tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)) }, { ...task, status: newStatus } as Task, 'status_changed', task.status).catch(() => {
+    sendWebhook(getProjectWithType({ ...project, tasks: project.tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)) }), { ...task, status: newStatus } as Task, 'status_changed', task.status).catch(() => {
       showToast('Webhook gửi thất bại', 'error')
     })
   }
