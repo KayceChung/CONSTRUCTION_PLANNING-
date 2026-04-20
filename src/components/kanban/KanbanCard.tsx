@@ -38,32 +38,51 @@ export default function KanbanCard({ task, totalTasks, onOpen }: KanbanCardProps
       {...listeners}
       layout
       title={task.status === 'cancelled' ? 'Hạng mục đã hủy và không tính vào tiến độ' : `Hoàn thành hạng mục này sẽ tăng tiến độ thêm ${weight}%`}
-      className={`rounded-xl border-2 p-4 shadow transition-all cursor-grab active:cursor-grabbing hover:shadow-md ${isDragging ? 'border-blue-500 bg-blue-100 shadow-lg scale-105' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+      className={`rounded-xl border-2 p-3 shadow transition-all cursor-grab active:cursor-grabbing hover:shadow-md ${isDragging ? 'border-blue-500 bg-blue-100 shadow-lg scale-105' : 'border-slate-200 bg-white hover:border-slate-300'}`}
       whileHover={{ y: -2 }}
     >
       <button type="button" onClick={onOpen} className="text-left w-full">
+        {/* Title và Badge */}
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="text-sm font-bold text-slate-900 line-clamp-2 flex-1">{task.title}</h3>
           <Badge label={contributionText} type={task.status} />
         </div>
         
+        {/* Description */}
         {task.description && (
-          <p className="text-xs text-slate-600 line-clamp-1 mb-2">{task.description}</p>
+          <p className="text-xs text-slate-700 mb-2 line-clamp-2">{task.description}</p>
         )}
         
-        <div className="flex flex-wrap gap-2 text-xs text-slate-500 mb-3">
+        {/* Timeline info: Estimate days, Deadline, Assignee */}
+        <div className="flex flex-wrap gap-1.5 text-xs mb-2">
           {task.estimatedDays && (
-            <span className="bg-slate-100 px-2 py-1 rounded-full">⏱️ {task.estimatedDays} ngày</span>
+            <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-full">⏱️ {task.estimatedDays}d</span>
           )}
           {task.deadline && (
             <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full">📅 {formatDate(task.deadline)}</span>
           )}
+          {task.assignee && (
+            <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded-full">👤 {task.assignee}</span>
+          )}
         </div>
         
+        {/* Note if exists */}
+        {task.note && (
+          <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-slate-700 line-clamp-1">
+            📝 {task.note}
+          </div>
+        )}
+        
+        {/* Updated info */}
+        <div className="text-xs text-slate-500 mb-2 pb-2 border-b border-slate-200">
+          <p>Cập nhật: {task.updatedBy} · {formatDate(task.updatedAt)}</p>
+        </div>
+        
+        {/* Images */}
         {task.images.length > 0 ? (
-          <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
-            {task.images.slice(0, 2).map((src, index) => (
-              <div key={index} className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50 h-12">
+          <div className="mt-2 grid gap-1.5 sm:grid-cols-3">
+            {task.images.slice(0, 3).map((src, index) => (
+              <div key={index} className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50 h-14">
                 {isVideoUrl(src) ? (
                   <video controls className="h-full w-full object-cover text-xs">
                     <source src={src} />
