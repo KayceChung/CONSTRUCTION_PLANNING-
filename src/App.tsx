@@ -107,65 +107,79 @@ export default function App() {
   }
 
   const layout = useMemo(
-    () => (
-      <div className="min-h-screen bg-slate-50">
-        <div className="lg:flex">
-          {user ? <Sidebar user={user} onLogout={logout} /> : null}
-          <div className="flex-1">
-            <PageWrapper>
-              <Routes>
-                <Route path="/login" element={<Login onSuccess={(message) => showToast(message, 'success')} />} />
-                <Route path="/signup" element={<SignUp />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route
-                  path="/"
-                  element={user ? (user.role === 'manager' ? <Dashboard showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
-                />
-                <Route
-                  path="/projects"
-                  element={user ? <ProjectList showToast={showToast} /> : <Navigate to="/login" />}
-                />
-                <Route
-                  path="/projects/new"
-                  element={user ? (user.role === 'manager' ? <CreateProject showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
-                />
-                <Route
-                  path="/projects/:projectId"
-                  element={user ? <ProjectDetail showToast={showToast} /> : <Navigate to="/login" />}
-                />
-                <Route
-                  path="/personnel"
-                  element={user ? (user.role === 'manager' ? <PersonnelList showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
-                />
-                <Route
-                  path="/personnel/:personnelId"
-                  element={user ? (user.role === 'manager' ? <PersonnelDetail showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
-                />
-                <Route
-                  path="/customers"
-                  element={user ? (user.role === 'manager' ? <CustomerList showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
-                />
-                <Route
-                  path="/customers/:customerId"
-                  element={user ? (user.role === 'manager' ? <CustomerDetail showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
-                />
-                <Route
-                  path="/settings"
-                  element={user ? (user.role === 'manager' ? <Settings showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
-                />
-                <Route path="*" element={<Navigate to={user ? (user.role === 'manager' ? '/' : '/projects') : '/login'} />} />
-              </Routes>
-            </PageWrapper>
+    () => {
+      // Show loading state while checking auth
+      if (authLoading) {
+        return (
+          <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-slate-600">Đang tải...</p>
+            </div>
+          </div>
+        )
+      }
+
+      return (
+        <div className="min-h-screen bg-slate-50">
+          <div className="lg:flex">
+            {user ? <Sidebar user={user} onLogout={logout} /> : null}
+            <div className="flex-1">
+              <PageWrapper>
+                <Routes>
+                  <Route path="/login" element={<Login onSuccess={(message) => showToast(message, 'success')} />} />
+                  <Route path="/signup" element={<SignUp />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route
+                    path="/"
+                    element={user ? (user.role === 'manager' ? <Dashboard showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
+                  />
+                  <Route
+                    path="/projects"
+                    element={user ? <ProjectList showToast={showToast} /> : <Navigate to="/login" />}
+                  />
+                  <Route
+                    path="/projects/new"
+                    element={user ? (user.role === 'manager' ? <CreateProject showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
+                  />
+                  <Route
+                    path="/projects/:projectId"
+                    element={user ? <ProjectDetail showToast={showToast} /> : <Navigate to="/login" />}
+                  />
+                  <Route
+                    path="/personnel"
+                    element={user ? (user.role === 'manager' ? <PersonnelList showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
+                  />
+                  <Route
+                    path="/personnel/:personnelId"
+                    element={user ? (user.role === 'manager' ? <PersonnelDetail showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
+                  />
+                  <Route
+                    path="/customers"
+                    element={user ? (user.role === 'manager' ? <CustomerList showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
+                  />
+                  <Route
+                    path="/customers/:customerId"
+                    element={user ? (user.role === 'manager' ? <CustomerDetail showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
+                  />
+                  <Route
+                    path="/settings"
+                    element={user ? (user.role === 'manager' ? <Settings showToast={showToast} /> : <Navigate to="/projects" />) : <Navigate to="/login" />}
+                  />
+                  <Route path="*" element={<Navigate to={user ? (user.role === 'manager' ? '/' : '/projects') : '/login'} />} />
+                </Routes>
+              </PageWrapper>
+            </div>
+          </div>
+          <div className="fixed bottom-4 right-4 flex flex-col gap-3">
+            {toasts.map((toast) => (
+              <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => removeToast(toast.id)} />
+            ))}
           </div>
         </div>
-        <div className="fixed bottom-4 right-4 flex flex-col gap-3">
-          {toasts.map((toast) => (
-            <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => removeToast(toast.id)} />
-          ))}
-        </div>
-      </div>
-    ),
-    [logout, showToast, toasts, user]
+      )
+    },
+    [authLoading, logout, showToast, toasts, user]
   )
 
   return layout

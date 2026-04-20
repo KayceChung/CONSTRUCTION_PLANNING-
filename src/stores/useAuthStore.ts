@@ -41,27 +41,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
   initialize: async () => {
-    const {
-      data: { session },
-      error,
-    } = await supabase.auth.getSession()
+    try {
+      // Get current session from Supabase
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession()
 
-    if (error) {
-      console.error('Error restoring auth session:', error)
-    }
+      if (sessionError) {
+        console.error('Error restoring auth session:', sessionError)
+      }
 
-    const user = await getStaffUser(session)
-    set({ user, loading: false })
+      // Fetch user data from database
+      const user = await getStaffUser(session)
+      
+      // Set state with user and loading = false
+      set({ user, loading: false })
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, nextSession: Session | null) => {
-      const nextUser = await getStaffUser(nextSession)
-      set({ user: nextUser, loading: false })
-    })
+      // Subscribe to auth state changes
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, nextSession: Session | null) => {
+        const nextUser = await getStaffUser(nextSession)
+        set({ user: nextUser, loading: false })
+      })
 
-    return () => {
-      subscription.unsubscribe()
+      return () => {
+        subscription.unsubscribe()
+      }
+    } catch (err) {
+      console.error('Error initializing auth:', err)
+      set({ user: null, loading: false })
+      return undefined
     }
   },
   login: async (email: string, password: string) => {
