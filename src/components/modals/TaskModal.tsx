@@ -7,6 +7,7 @@ import Button from '../ui/Button'
 import CameraCapture from './CameraCapture'
 import { Project, Task, TaskStatus, User } from '../../types'
 import { formatDate } from '../../utils/progress'
+import { formatFileSize } from '../../utils/imageCompression'
 
 const schema = z.object({
   status: z.enum(['todo', 'in_progress', 'done', 'adjustment', 'pending', 'cancelled']),
@@ -302,6 +303,27 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
               </div>
 
               <p className="mt-3 text-xs text-slate-500">💡 Chọn từ thư viện, chụp ảnh hoặc quay video trực tiếp từ thiết bị của bạn.</p>
+
+              {/* Selected Files Info */}
+              {selectedFiles && selectedFiles.length > 0 && (
+                <div className="mt-4 border-t border-slate-200 pt-4">
+                  <p className="text-xs font-semibold text-slate-700 mb-2">📸 Ảnh/Video đã chọn ({selectedFiles.length})</p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {Array.from(selectedFiles).map((file, index) => (
+                      <div key={index} className="text-xs text-slate-600 bg-white rounded p-2 flex justify-between items-center">
+                        <span className="truncate flex-1">{file.name}</span>
+                        <span className="ml-2 text-slate-500 whitespace-nowrap">{formatFileSize(file.size)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    📊 Tổng: {formatFileSize(Array.from(selectedFiles).reduce((acc, file) => acc + file.size, 0))}
+                  </p>
+                  <p className="mt-1 text-xs text-blue-600">
+                    ✨ Ảnh sẽ được nén trước khi lưu vào Supabase Database để tiết kiệm dữ liệu
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Buttons */}

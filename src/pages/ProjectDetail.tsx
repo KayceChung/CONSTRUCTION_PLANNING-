@@ -17,6 +17,7 @@ import KanbanBoard from '../components/kanban/KanbanBoard'
 import { calculateProjectProgress, formatDate, daysUntil } from '../utils/progress'
 import { sendWebhook } from '../utils/webhook'
 import { exportProjectPdf } from '../utils/pdfReport'
+import { compressImages, getBase64Size, formatFileSize } from '../utils/imageCompression'
 import { sendZaloNotification, checkDeadlineWarnings, createZaloGroupForProject } from '../lib/webhook-service'
 import { Project, Task, TaskStatus } from '../types'
 
@@ -118,29 +119,36 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   }
 
   const uploadImages = async (files: FileList) => {
-    const imagePromises = Array.from(files).map((file) => {
-      return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = () => reject(new Error('Không thể đọc ảnh'))
-        reader.readAsDataURL(file)
-      })
-    })
-
     try {
-      const images = await Promise.all(imagePromises)
+      // Nén các ảnh trước khi lưu
+      const compressedImages = await compressImages(files)
+      
       if (!selectedTask) return
-      const nextImages = [...selectedTask.images, ...images]
+
+      // Tính toán kích thước gốc và kích thước sau nén
+      const originalSize = Array.from(files).reduce((acc, file) => acc + file.size, 0)
+      const compressedSize = compressedImages.reduce((acc, img) => acc + getBase64Size(img), 0)
+      const savedSize = originalSize - compressedSize
+      const compressionRatio = originalSize > 0 ? Math.round(((savedSize / originalSize) * 100)) : 0
+
+      // Thêm ảnh đã nén vào task
+      const nextImages = [...selectedTask.images, ...compressedImages]
       updateTask(project.id, selectedTask.id, { images: nextImages })
-      showToast('Upload ảnh thành công', 'success')
+
+      // Thông báo chi tiết về upload
+      const message = `✅ Upload ${compressedImages.length} ảnh thành công!\n📁 Lưu vào: Supabase Database (bảng tasks)\n📊 Nén: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)} (tiết kiệm ${compressionRatio}%)`
+      showToast(message, 'success')
+
+      // Gửi webhook khi có ảnh được upload
       const updatedProject = useProjectStore.getState().projects.find((item) => item.id === project.id)
       if (updatedProject) {
         sendWebhook(updatedProject, { ...selectedTask, images: nextImages } as Task, 'image_uploaded').catch(() => {
-          showToast('Webhook gửi thất bại', 'error')
+          showToast('⚠️ Ảnh đã lưu nhưng webhook gửi thất bại', 'error')
         })
       }
-    } catch {
-      showToast('Upload ảnh thất bại', 'error')
+    } catch (error) {
+      console.error('Error uploading images:', error)
+      showToast('❌ Upload ảnh thất bại. Vui lòng thử lại.', 'error')
     }
   }
 
