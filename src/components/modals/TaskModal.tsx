@@ -4,9 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
+import CameraCapture from './CameraCapture'
 import { Project, Task, TaskStatus, User } from '../../types'
 import { formatDate } from '../../utils/progress'
-import { Image, Video } from 'lucide-react'
 
 const schema = z.object({
   status: z.enum(['todo', 'in_progress', 'done', 'adjustment', 'pending', 'cancelled']),
@@ -51,6 +51,7 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
   const [estimatedDays, setEstimatedDays] = useState<string>(task.estimatedDays?.toString() || '')
   const [deadline, setDeadline] = useState(task.deadline)
   const [completedAt, setCompletedAt] = useState(task.completedAt || '')
+  const [cameraMode, setCameraMode] = useState<'photo' | 'video' | null>(null)
 
   const { register, handleSubmit, watch } = useForm<z.infer<typeof schema>>({
     defaultValues: { status: task.status, description: task.description, note: task.note || '' },
@@ -70,6 +71,13 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
     if (files) {
       setSelectedFiles(files)
     }
+  }
+
+  const handleCameraCapture = (file: File) => {
+    const dataTransfer = new DataTransfer()
+    dataTransfer.items.add(file)
+    setSelectedFiles(dataTransfer.files)
+    setCameraMode(null)
   }
 
   useEffect(() => {
@@ -126,6 +134,7 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 p-4">
       <div className="mx-auto w-full max-w-3xl rounded-3xl bg-white p-6 shadow-2xl">
+        {/* Header */}
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold text-slate-900">{task.title}</h2>
@@ -136,8 +145,11 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
           </button>
         </div>
 
+        {/* Main Content - Two columns */}
         <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
+          {/* Left Column */}
           <div className="space-y-4">
+            {/* Description */}
             <div className="rounded-3xl bg-slate-50 p-4">
               <label className="block text-sm font-semibold text-slate-700">Mô tả</label>
               <textarea
@@ -148,6 +160,7 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
               />
             </div>
 
+            {/* Timeline */}
             <div className="rounded-3xl bg-slate-50 p-4">
               <p className="text-sm font-semibold text-slate-700">Thời gian thi công</p>
               <div className="mt-4 space-y-3">
@@ -179,6 +192,7 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
               </div>
             </div>
 
+            {/* Status */}
             <div className="rounded-3xl bg-slate-50 p-4">
               <p className="text-sm font-semibold text-slate-700">Trạng thái hiện tại</p>
               <div className="mt-3 flex items-center gap-2">
@@ -187,6 +201,7 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
               </div>
             </div>
 
+            {/* Images */}
             <div className="rounded-3xl bg-slate-50 p-4">
               <p className="text-sm font-semibold text-slate-700">Ảnh / Video thực tế</p>
               {task.images.length > 0 ? (
@@ -209,7 +224,9 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
             </div>
           </div>
 
+          {/* Right Column */}
           <div className="space-y-4">
+            {/* Status Buttons */}
             <div className="rounded-3xl bg-slate-50 p-4">
               <label className="block text-sm font-semibold text-slate-700">Chuyển trạng thái</label>
               <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -226,7 +243,6 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
                     type="button"
                     className={`rounded-xl px-3 py-2 text-xs font-medium transition ${statusOption.color} ${status === statusOption.value ? 'ring-2 ring-brand-500 ring-offset-1' : ''}`}
                     onClick={() => {
-                      // Update the form value
                       const event = { target: { name: 'status', value: statusOption.value } }
                       register('status').onChange(event)
                     }}
@@ -238,6 +254,7 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
               <p className="mt-2 text-xs text-slate-500">Ghi chú bắt buộc khi chuyển về điều chỉnh, tạm dừng hoặc hủy bỏ.</p>
             </div>
 
+            {/* Notes */}
             <div className="rounded-3xl bg-slate-50 p-4">
               <label className="block text-sm font-semibold text-slate-700">Ghi chú</label>
               <textarea
@@ -249,53 +266,47 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
               {noteRequired && !watch('note') && <p className="mt-2 text-xs text-rose-500">Ghi chú là bắt buộc.</p>}
             </div>
 
+            {/* Camera / Upload */}
             {user.role === 'supervisor' && ['in_progress', 'done'].includes(task.status) ? (
               <div className="rounded-3xl bg-slate-50 p-4">
-                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <Video size={16} /> Tải ảnh / Video
-                </label>
-                
-                {/* File upload */}
-                <div className="mt-3">
-                  <label className="block text-xs text-slate-600 mb-2">Chọn từ thư viện</label>
-                  <input
-                    type="file"
-                    accept="image/*,video/*"
-                    multiple
-                    className="text-sm text-slate-600"
-                    onChange={(event) => handleFiles(event.target.files)}
-                  />
+                <label className="block text-sm font-semibold text-slate-700 mb-3">Tải ảnh / Video</label>
+
+                <div className="space-y-2">
+                  <label className="block">
+                    <input
+                      type="file"
+                      accept="image/*,video/*"
+                      multiple
+                      className="hidden"
+                      onChange={(event) => handleFiles(event.target.files)}
+                    />
+                    <span className="block w-full bg-blue-100 hover:bg-blue-200 text-blue-700 font-semibold py-2 rounded-lg text-center cursor-pointer transition text-sm">
+                      📁 Chọn từ thư viện
+                    </span>
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => setCameraMode('photo')}
+                    className="w-full bg-green-100 hover:bg-green-200 text-green-700 font-semibold py-2 rounded-lg transition text-sm"
+                  >
+                    📸 Chụp ảnh
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCameraMode('video')}
+                    className="w-full bg-red-100 hover:bg-red-200 text-red-700 font-semibold py-2 rounded-lg transition text-sm"
+                  >
+                    🎥 Quay video
+                  </button>
                 </div>
 
-                {/* Camera capture */}
-                <div className="mt-3 flex gap-2">
-                  <div className="flex-1">
-                    <label className="block text-xs text-slate-600 mb-2">Chụp ảnh</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="text-sm text-slate-600"
-                      onChange={(event) => handleFiles(event.target.files)}
-                    />
-                  </div>
-                  
-                  <div className="flex-1">
-                    <label className="block text-xs text-slate-600 mb-2">Quay video</label>
-                    <input
-                      type="file"
-                      accept="video/*"
-                      capture="environment"
-                      className="text-sm text-slate-600"
-                      onChange={(event) => handleFiles(event.target.files)}
-                    />
-                  </div>
-                </div>
-                
-                <p className="mt-3 text-xs text-slate-500">💡 Bạn có thể upload từ thư viện, chụp ảnh hoặc quay video trực tiếp từ thiết bị.</p>
+                <p className="mt-3 text-xs text-slate-500">💡 Chọn từ thư viện, chụp ảnh hoặc quay video trực tiếp từ thiết bị của bạn.</p>
               </div>
             ) : null}
 
+            {/* Buttons */}
             <div className="flex flex-wrap gap-3">
               <Button type="button" variant="ghost" className="border border-slate-200 text-slate-700" onClick={onClose}>
                 Hủy
@@ -307,6 +318,15 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
           </div>
         </div>
       </div>
+
+      {/* Camera Capture Modal */}
+      {cameraMode && (
+        <CameraCapture
+          mode={cameraMode}
+          onCapture={handleCameraCapture}
+          onClose={() => setCameraMode(null)}
+        />
+      )}
     </div>
   )
 }
