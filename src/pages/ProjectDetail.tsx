@@ -82,10 +82,14 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
 
   // Check deadline warnings when component mounts
   useEffect(() => {
-    if (project && projects.length > 0) {
-      checkDeadlineWarnings(projects)
+    try {
+      if (project && projects.length > 0) {
+        checkDeadlineWarnings(projects)
+      }
+    } catch (error) {
+      console.error('❌ Error checking deadline warnings:', error)
     }
-  }, [])
+  }, [project, projects])
 
   // Initialize webhook URL from project
   useEffect(() => {

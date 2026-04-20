@@ -6,6 +6,7 @@ import { useProjectStore } from './stores/useProjectStore'
 import { useStaffStore } from './stores/useStaffStore'
 import { useProjectTypeStore } from './stores/useProjectTypeStore'
 import { supabase } from './lib/supabase'
+import ErrorBoundary from './components/ErrorBoundary'
 import CustomerDetail from './pages/CustomerDetail'
 import CustomerList from './pages/CustomerList'
 import CreateProject from './pages/CreateProject'
@@ -126,7 +127,8 @@ export default function App() {
             {user ? <Sidebar user={user} onLogout={logout} /> : null}
             <div className="flex-1">
               <PageWrapper>
-                <Routes>
+                <ErrorBoundary>
+                  <Routes>
                   <Route path="/login" element={<Login onSuccess={(message) => showToast(message, 'success')} />} />
                   <Route path="/signup" element={<SignUp />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -168,6 +170,7 @@ export default function App() {
                   />
                   <Route path="*" element={<Navigate to={user ? (user.role === 'manager' ? '/' : '/projects') : '/login'} />} />
                 </Routes>
+                </ErrorBoundary>
               </PageWrapper>
             </div>
           </div>
