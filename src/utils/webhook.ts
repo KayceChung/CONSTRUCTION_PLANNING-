@@ -1,7 +1,7 @@
 import { Project, Task, TaskStatus } from '../types'
 import { calculateProjectProgress } from './progress'
 import { WEBHOOK_CONFIG } from '../config/webhooks'
-import { supabase } from './supabase'
+import { supabase } from '../lib/supabase'
 
 async function postJsonWebhook(url: string, payload: unknown): Promise<void> {
   const response = await fetch(url, {
