@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useMemo } from 'react'
+import { motion } from 'framer-motion'
 import { useProjectStore } from '../stores/useProjectStore'
 import { calculateProjectProgress, daysUntil, progressColor } from '../utils/progress'
 import Button from '../components/ui/Button'
@@ -18,7 +19,7 @@ export default function Dashboard({ showToast }: DashboardProps) {
     [projects]
   )
   const doneCount = useMemo(
-    () => projects.filter((project) => project.tasks.every((task) => task.status === 'done')).length,
+    () => projects.filter((project) => project.tasks.filter((task) => task.status !== 'cancelled').every((task) => task.status === 'done')).length,
     [projects]
   )
 
@@ -113,7 +114,12 @@ export default function Dashboard({ showToast }: DashboardProps) {
                     <strong>{progress}%</strong>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div className={`h-full rounded-full ${progressColor(progress)}`} style={{ width: `${progress}%` }} />
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress}%` }}
+                      transition={{ duration: 0.8, ease: 'easeInOut' }}
+                      className={`h-full rounded-full ${progressColor(progress)}`}
+                    />
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className={deadlineClass}>Deadline: {deadlineDays} ngày</span>

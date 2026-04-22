@@ -174,7 +174,7 @@ export default function CustomerDetail({ showToast }: { showToast: (message: str
                           <td className="px-4 py-4 font-semibold text-slate-900">{project.name}</td>
                           <td className="px-4 py-4">{project.category === 'new_construction' ? 'Xây mới' : project.category === 'renovation' ? 'Cải tạo' : 'Khác'}</td>
                           <td className="px-4 py-4">{Math.round((project.tasks.filter((task) => task.status === 'done').length / Math.max(1, project.tasks.filter((task) => task.status !== 'cancelled').length)) * 100)}%</td>
-                          <td className="px-4 py-4">{project.tasks.every((task) => task.status === 'done') ? 'Hoàn thành' : 'Đang thi công'}</td>
+                          <td className="px-4 py-4">{project.tasks.filter((task) => task.status !== 'cancelled').every((task) => task.status === 'done') ? 'Hoàn thành' : 'Đang thi công'}</td>
                           <td className="px-4 py-4">{new Intl.NumberFormat('vi-VN').format(project.contractValue)} đ</td>
                           <td className="px-4 py-4">
                             <button

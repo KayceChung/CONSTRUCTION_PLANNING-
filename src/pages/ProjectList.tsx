@@ -48,7 +48,7 @@ export default function ProjectList({ showToast }: ProjectListProps) {
                 <p className="text-sm font-semibold text-slate-900">{project.name}</p>
                 <p className="mt-1 text-sm text-slate-500">{project.location}</p>
               </div>
-              <Badge label={`${calculateProjectProgress(project)}%`} type={project.tasks.every((task) => task.status === 'done') ? 'done' : 'in_progress'} />
+              <Badge label={`${calculateProjectProgress(project)}%`} type={project.tasks.filter((task) => task.status !== 'cancelled').every((task) => task.status === 'done') ? 'done' : 'in_progress'} />
             </div>
             <p className="mt-4 text-sm text-slate-600">Chủ đầu tư: {project.client}</p>
             <p className="mt-2 text-sm text-slate-600">Webhook: {project.webhookUrl || 'Chưa cấu hình'}</p>
