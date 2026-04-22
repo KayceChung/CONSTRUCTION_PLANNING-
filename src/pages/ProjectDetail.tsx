@@ -120,14 +120,19 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
       const actualDays = Math.ceil((new Date(updatedTask.completedAt).getTime() - new Date(updatedTask.startDate).getTime()) / (1000 * 60 * 60 * 24))
       updatedTask.actualDays = actualDays > 0 ? actualDays : 0
     }
-    updateTask(project.id, selectedTask.id, updatedTask)
-    setSelectedTask(null)
-    showToast('Cập nhật công việc thành công', 'success')
-    const updatedProject = useProjectStore.getState().projects.find((item) => item.id === project.id)
-    if (updatedProject) {
-      sendWebhook(getProjectWithType(updatedProject), { ...selectedTask, ...updatedTask } as Task, 'status_changed', previousStatus).catch(() => {
-        showToast('Webhook gửi thất bại', 'error')
-      })
+    try {
+      await updateTask(project.id, selectedTask.id, updatedTask)
+      setSelectedTask(null)
+      showToast('Cập nhật công việc thành công', 'success')
+      const updatedProject = useProjectStore.getState().projects.find((item) => item.id === project.id)
+      if (updatedProject) {
+          sendWebhook(getProjectWithType(updatedProject), { ...selectedTask, ...updatedTask } as Task, 'status_changed', previousStatus).catch(() => {
+          showToast('Webhook gử thất bại', 'error')
+        })
+      }
+    } catch (error) {
+      console.error('Error saving task changes:', error)
+      showToast('Cập nhật công việc thất bại', 'error')
     }
   }
 
@@ -147,7 +152,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
 
       // Thêm ảnh đã nén vào task
       const nextImages = [...selectedTask.images, ...compressedImages]
-      updateTask(project.id, selectedTask.id, { images: nextImages })
+      await updateTask(project.id, selectedTask.id, { images: nextImages })
 
       // Thông báo chi tiết về upload
       const message = `✅ Upload ${compressedImages.length} ảnh thành công!\n📁 Lưu vào: Supabase Database (bảng tasks)\n📊 Nén: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)} (tiết kiệm ${compressionRatio}%)`
@@ -189,7 +194,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     return images
   }, [project?.tasks])
 
-  const createTask = (data: { title: string; description?: string; startDate: string; estimatedDays: number; deadline?: string }) => {
+  const createTask = async (data: { title: string; description?: string; startDate: string; estimatedDays: number; deadline?: string }) => {
     if (!project || !user) return
     const task: Task = {
       id: uuidv4(),
@@ -205,12 +210,17 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
       updatedBy: user.name,
       order: project.tasks.length + 1
     }
-    addTask(project.id, task)
-    showToast('Đã tạo hạng mục mới', 'success')
-    if (project.webhookUrl) {
-      sendWebhook(getProjectWithType({ ...project, tasks: [...project.tasks, task] }), task, 'task_created').catch(() => {
-        showToast('Webhook gửi thất bại', 'error')
-      })
+    try {
+      await addTask(project.id, task)
+      showToast('Đã tạo hạng mục mới', 'success')
+      if (project.webhookUrl) {
+        sendWebhook(getProjectWithType({ ...project, tasks: [...project.tasks, task] }), task, 'task_created').catch(() => {
+          showToast('Webhook gửi thất bại', 'error')
+        })
+      }
+    } catch (error) {
+      console.error('Error creating task:', error)
+      showToast('Tạo hạng mục thất bại', 'error')
     }
   }
 
@@ -251,7 +261,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     }
   }
 
-  const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
+  const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
     if (!project || !user) return
     const task = project.tasks.find((item) => item.id === taskId)
     if (!task) return
@@ -260,26 +270,31 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
       return
     }
     const previousStatus = task.status
-    updateTask(project.id, taskId, {
-      status: newStatus,
-      note: `Chuyển trạng thái qua kéo thả`,
-      updatedBy: user.name,
-      updatedAt: new Date().toISOString()
-    })
-    showToast('Cập nhật trạng thái thành công', 'success')
+    try {
+      await updateTask(project.id, taskId, {
+        status: newStatus,
+        note: `Chuyển trạng thái qua kéo thả`,
+        updatedBy: user.name,
+        updatedAt: new Date().toISOString()
+      })
+      showToast('Cập nhật trạng thái thành công', 'success')
 
-    // Send Zalo notification for status change
-    sendZaloNotification(project, 'task.status_changed', {
-      taskTitle: task.title,
-      oldStatus: previousStatus,
-      newStatus: newStatus,
-      updatedBy: user.name,
-      timestamp: new Date().toISOString(),
-    })
+      // Send Zalo notification for status change
+      sendZaloNotification(project, 'task.status_changed', {
+        taskTitle: task.title,
+        oldStatus: previousStatus,
+        newStatus: newStatus,
+        updatedBy: user.name,
+        timestamp: new Date().toISOString(),
+      })
 
-    sendWebhook(getProjectWithType({ ...project, tasks: project.tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)) }), { ...task, status: newStatus } as Task, 'status_changed', task.status).catch(() => {
-      showToast('Webhook gửi thất bại', 'error')
-    })
+      sendWebhook(getProjectWithType({ ...project, tasks: project.tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)) }), { ...task, status: newStatus } as Task, 'status_changed', task.status).catch(() => {
+        showToast('Webhook gử thất bại', 'error')
+      })
+    } catch (error) {
+      console.error('Error updating task status:', error)
+      showToast('Cập nhật trạng thái thất bại', 'error')
+    }
   }
 
   // Show loading state
