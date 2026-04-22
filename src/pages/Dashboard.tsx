@@ -118,7 +118,7 @@ export default function Dashboard({ showToast }: DashboardProps) {
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
                       transition={{ duration: 0.8, ease: 'easeInOut' }}
-                      className={`h-full rounded-full ${progressColor(progress)}`}
+                      className={`h-full rounded-full bg-gradient-to-r ${progressColor(progress)}`}
                     />
                   </div>
                   <div className="flex items-center justify-between text-sm">
