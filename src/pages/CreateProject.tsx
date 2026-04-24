@@ -199,6 +199,17 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
     [getTaskTemplatesByProjectType, selectedProjectTypeId]
   )
 
+  const suggestedDurationDays = useMemo(() => {
+    if (!selectedProjectTypeId) return 0
+
+    const defaultTemplates = getDefaultTaskTemplates(selectedProjectTypeId)
+    const defaultTotal = defaultTemplates.reduce((sum, template) => sum + Math.max(0, template.estimatedDays || 0), 0)
+    if (defaultTotal > 0) return defaultTotal
+
+    const allTemplates = getTaskTemplatesByProjectType(selectedProjectTypeId)
+    return allTemplates.reduce((sum, template) => sum + Math.max(0, template.estimatedDays || 0), 0)
+  }, [getDefaultTaskTemplates, getTaskTemplatesByProjectType, selectedProjectTypeId])
+
   const compactCustomers = useMemo(() => customers.slice(0, MAX_VISIBLE_CUSTOMERS), [customers])
 
   const getVisibleCustomers = (activeCustomerId: string) => {
@@ -271,6 +282,17 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
       setSelectedClientId(selectedCustomerId)
     }
   }, [selectedCustomerId, selectedClientId])
+
+  useEffect(() => {
+    if (!selectedProjectTypeId) {
+      setEstimatedDurationDays('')
+      return
+    }
+
+    if (suggestedDurationDays > 0) {
+      setEstimatedDurationDays(String(suggestedDurationDays))
+    }
+  }, [selectedProjectTypeId, suggestedDurationDays])
 
   useEffect(() => {
     if (!projectStart) return
