@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { User } from '../../types'
-import { Home, LayoutGrid, LogOut, ListChecks, Settings, Users } from 'lucide-react'
+import { Home, LayoutGrid, LogOut, ListChecks, Settings, Users, X } from 'lucide-react'
 import Button from '../ui/Button'
 import { useStaffStore } from '../../stores/useStaffStore'
 
 interface SidebarProps {
   user: User
   onLogout: () => void
+  mobileOpen?: boolean
+  onCloseMobile?: () => void
 }
 
 interface NavItem {
@@ -17,7 +19,7 @@ interface NavItem {
   badge?: string
 }
 
-export default function Sidebar({ user, onLogout }: SidebarProps) {
+export default function Sidebar({ user, onLogout, mobileOpen = false, onCloseMobile }: SidebarProps) {
   const [logoError, setLogoError] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const location = useLocation()
@@ -47,9 +49,22 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
   }
 
   return (
-    <aside className="hidden h-screen w-80 shrink-0 flex-col border-r border-slate-200 bg-white px-6 py-6 lg:flex">
+    <aside
+      className={`fixed inset-y-0 left-0 z-50 flex h-screen w-80 max-w-[85vw] shrink-0 flex-col border-r border-slate-200 bg-white px-6 py-6 transition-transform duration-300 lg:static lg:z-auto lg:max-w-none lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
+      aria-hidden={!mobileOpen}
+    >
       <div className="flex min-h-0 flex-1 flex-col gap-6">
         <div>
+        <div className="mb-4 flex items-center justify-end lg:hidden">
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700"
+            onClick={onCloseMobile}
+            aria-label="Đóng menu"
+          >
+            <X size={18} />
+          </button>
+        </div>
         <div className="mb-8 inline-flex items-center gap-3 text-2xl font-semibold text-blue-600">
           {!logoError ? (
             <img
@@ -77,6 +92,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
             <Link
               key={item.to}
               to={item.to}
+              onClick={onCloseMobile}
               className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
                 active ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-slate-100'
               }`}

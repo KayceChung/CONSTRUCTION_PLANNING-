@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate, useLocation } from 'react-router-dom'
+import { Menu } from 'lucide-react'
 import { useAuthStore } from './stores/useAuthStore'
 import { useCustomerStore } from './stores/useCustomerStore'
 import { useProjectStore } from './stores/useProjectStore'
@@ -40,6 +41,7 @@ export default function App() {
   const navigate = useNavigate()
   const location = useLocation()
   const [toasts, setToasts] = useState<ToastItem[]>([])
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   // Đảm bảo luôn khởi tạo trạng thái user khi app khởi động (gọi trong hook)
   useEffect(() => {
@@ -99,6 +101,10 @@ export default function App() {
     }
   }, [authLoading, user, navigate, location.pathname])
 
+  useEffect(() => {
+    setMobileSidebarOpen(false)
+  }, [location.pathname])
+
   const showToast = (message: string, type: ToastItem['type'] = 'info') => {
     setToasts((prev) => [...prev, { id: `${Date.now()}-${prev.length}`, message, type }])
   }
@@ -124,8 +130,37 @@ export default function App() {
       return (
         <div className="min-h-screen bg-slate-50">
           <div className="lg:flex">
-            {user ? <Sidebar user={user} onLogout={logout} /> : null}
+            {user ? (
+              <>
+                <div
+                  className={`fixed inset-0 z-40 bg-slate-900/30 transition-opacity lg:hidden ${mobileSidebarOpen ? 'opacity-100 pointer-events-auto' : 'pointer-events-none opacity-0'}`}
+                  onClick={() => setMobileSidebarOpen(false)}
+                />
+                <Sidebar
+                  user={user}
+                  onLogout={logout}
+                  mobileOpen={mobileSidebarOpen}
+                  onCloseMobile={() => setMobileSidebarOpen(false)}
+                />
+              </>
+            ) : null}
             <div className="flex-1">
+              {user ? (
+                <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700"
+                      onClick={() => setMobileSidebarOpen(true)}
+                      aria-label="Mở menu"
+                    >
+                      <Menu size={18} />
+                    </button>
+                    <p className="text-base font-semibold text-slate-900">ConstructTrack</p>
+                    <div className="h-10 w-10" />
+                  </div>
+                </div>
+              ) : null}
               <PageWrapper>
                 <ErrorBoundary>
                   <Routes>
