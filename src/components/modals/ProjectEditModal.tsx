@@ -73,9 +73,9 @@ export default function ProjectEditModal({ isOpen, project, onClose, onSave }: P
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-      <div className="w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 sm:items-center sm:p-4">
+      <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5">
           <div>
             <h2 className="text-xl font-semibold text-slate-900">Chỉnh sửa dự án</h2>
             <p className="mt-1 text-sm text-slate-500">Cập nhật thông tin và thanh toán cho dự án hiện tại.</p>
@@ -84,12 +84,12 @@ export default function ProjectEditModal({ isOpen, project, onClose, onSave }: P
             Đóng
           </button>
         </div>
-        <div className="space-y-6 px-6 py-6">
+        <div className="space-y-5 px-4 py-4 sm:space-y-6 sm:px-6 sm:py-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-semibold text-slate-700">Tên dự án</label>
               <input
-                className="mt-2 w-full rounded-3xl border border-slate-200 px-4 py-3"
+                className="mt-2 min-h-[44px] w-full rounded-3xl border border-slate-200 px-4 py-3"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -97,7 +97,7 @@ export default function ProjectEditModal({ isOpen, project, onClose, onSave }: P
             <div>
               <label className="block text-sm font-semibold text-slate-700">Loại hình</label>
               <select
-                className="mt-2 w-full rounded-3xl border border-slate-200 bg-white px-4 py-3"
+                className="mt-2 min-h-[44px] w-full rounded-3xl border border-slate-200 bg-white px-4 py-3"
                 value={category}
                 onChange={(e) => setCategory(e.target.value as Project['category'])}
               >
@@ -112,25 +112,25 @@ export default function ProjectEditModal({ isOpen, project, onClose, onSave }: P
             <p className="text-sm font-semibold text-slate-700">Địa chỉ thi công</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <input
-                className="rounded-3xl border border-slate-200 bg-white px-4 py-3"
+                className="min-h-[44px] rounded-3xl border border-slate-200 bg-white px-4 py-3"
                 value={fullAddress}
                 onChange={(e) => setFullAddress(e.target.value)}
                 placeholder="Số nhà, đường"
               />
               <input
-                className="rounded-3xl border border-slate-200 bg-white px-4 py-3"
+                className="min-h-[44px] rounded-3xl border border-slate-200 bg-white px-4 py-3"
                 value={ward}
                 onChange={(e) => setWard(e.target.value)}
                 placeholder="Phường / xã"
               />
               <input
-                className="rounded-3xl border border-slate-200 bg-white px-4 py-3"
+                className="min-h-[44px] rounded-3xl border border-slate-200 bg-white px-4 py-3"
                 value={district}
                 onChange={(e) => setDistrict(e.target.value)}
                 placeholder="Quận / huyện"
               />
               <select
-                className="rounded-3xl border border-slate-200 bg-white px-4 py-3"
+                className="min-h-[44px] rounded-3xl border border-slate-200 bg-white px-4 py-3"
                 value={province}
                 onChange={(e) => setProvince(e.target.value)}
               >
@@ -146,7 +146,7 @@ export default function ProjectEditModal({ isOpen, project, onClose, onSave }: P
               <label className="block text-sm font-semibold text-slate-700">Bắt đầu</label>
               <input
                 type="date"
-                className="mt-2 w-full rounded-3xl border border-slate-200 px-4 py-3"
+                className="mt-2 min-h-[44px] w-full rounded-3xl border border-slate-200 px-4 py-3"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
               />
@@ -155,7 +155,7 @@ export default function ProjectEditModal({ isOpen, project, onClose, onSave }: P
               <label className="block text-sm font-semibold text-slate-700">Kết thúc</label>
               <input
                 type="date"
-                className="mt-2 w-full rounded-3xl border border-slate-200 px-4 py-3"
+                className="mt-2 min-h-[44px] w-full rounded-3xl border border-slate-200 px-4 py-3"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
               />
@@ -168,7 +168,7 @@ export default function ProjectEditModal({ isOpen, project, onClose, onSave }: P
               <input
                 type="number"
                 min="0"
-                className="mt-2 w-full rounded-3xl border border-slate-200 px-4 py-3"
+                className="mt-2 min-h-[44px] w-full rounded-3xl border border-slate-200 px-4 py-3"
                 value={contractValue}
                 onChange={(e) => setContractValue(e.target.value)}
               />
@@ -178,7 +178,7 @@ export default function ProjectEditModal({ isOpen, project, onClose, onSave }: P
               <input
                 type="number"
                 min="0"
-                className="mt-2 w-full rounded-3xl border border-slate-200 px-4 py-3"
+                className="mt-2 min-h-[44px] w-full rounded-3xl border border-slate-200 px-4 py-3"
                 value={paidAmount}
                 onChange={(e) => setPaidAmount(e.target.value)}
               />
@@ -195,11 +195,11 @@ export default function ProjectEditModal({ isOpen, project, onClose, onSave }: P
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
-          <Button type="button" variant="secondary" onClick={onClose} disabled={isSaving}>
+        <div className="flex flex-col-reverse gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={isSaving} className="w-full sm:w-auto">
             Hủy
           </Button>
-          <Button type="button" onClick={() => void handleSave()} disabled={isSaving}>
+          <Button type="button" onClick={() => void handleSave()} disabled={isSaving} className="w-full sm:w-auto">
             {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
           </Button>
         </div>
