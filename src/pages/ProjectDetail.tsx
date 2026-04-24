@@ -54,6 +54,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   const [webhookUrl, setWebhookUrl] = useState('')
   const [sendingTestWebhook, setSendingTestWebhook] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'finance' | 'images' | 'logs'>('overview')
+  const [timelineMonth, setTimelineMonth] = useState(() => new Date())
 
   const customers = useCustomerStore((state) => state.customers)
   const staff = useStaffStore((state) => state.staff)
@@ -98,9 +99,26 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
     }
   }, [project?.id])
 
+  useEffect(() => {
+    if (!project?.startDate) return
+    const start = new Date(project.startDate)
+    if (Number.isNaN(start.getTime())) return
+    setTimelineMonth(new Date(start.getFullYear(), start.getMonth(), 1))
+  }, [project?.id, project?.startDate])
+
   // Calculate values - move early returns AFTER all hooks
   const progress = useMemo(() => project ? calculateProjectProgress(project) : 0, [project])
   const deadlineDays = useMemo(() => project ? daysUntil(project.endDate) : null, [project])
+  const monthStart = useMemo(() => new Date(timelineMonth.getFullYear(), timelineMonth.getMonth(), 1), [timelineMonth])
+  const monthEnd = useMemo(() => new Date(timelineMonth.getFullYear(), timelineMonth.getMonth() + 1, 0), [timelineMonth])
+  const daysInMonth = monthEnd.getDate()
+  const timelineGridTemplate = `200px repeat(${daysInMonth}, 40px)`
+
+  const moveTimelineMonth = (offset: number) => {
+    setTimelineMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1))
+  }
+
+  const dateInRange = (value: Date, start: Date, end: Date) => value >= start && value <= end
 
   const saveTaskChanges = async (changes: Partial<Task>) => {
     if (!project || !user || !selectedTask) return
@@ -620,14 +638,22 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
             ) : (
               <div className="overflow-x-auto">
                 <div className="min-w-[900px] rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="mb-4 flex items-center justify-between text-sm text-slate-600">
-                    <span>Tháng: {new Date(project.startDate).toLocaleDateString('vi-VN', { month: 'short', year: 'numeric' })}</span>
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="secondary" className="px-3 py-2" onClick={() => moveTimelineMonth(-1)}>
+                        ← Tháng trước
+                      </Button>
+                      <Button type="button" variant="secondary" className="px-3 py-2" onClick={() => moveTimelineMonth(1)}>
+                        Tháng sau →
+                      </Button>
+                    </div>
+                    <span>Tháng: {timelineMonth.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}</span>
                     <span className="font-semibold">Timeline dự án</span>
                   </div>
                   <div className="overflow-hidden rounded-3xl bg-white shadow-sm">
-                    <div className="grid grid-cols-[200px_repeat(31,40px)] gap-0 border-b border-slate-200 bg-slate-100 px-4 py-3 text-xs uppercase tracking-[0.12em] text-slate-500">
+                    <div style={{ gridTemplateColumns: timelineGridTemplate }} className="grid gap-0 border-b border-slate-200 bg-slate-100 px-4 py-3 text-xs uppercase tracking-[0.12em] text-slate-500">
                       <div className="py-2">Hạng mục</div>
-                      {Array.from({ length: 31 }, (_, index) => (
+                      {Array.from({ length: daysInMonth }, (_, index) => (
                         <div key={index} className="flex h-8 items-center justify-center border-l border-slate-200">{index + 1}</div>
                       ))}
                     </div>
@@ -635,22 +661,38 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
                       {project.tasks.map((task) => {
                         const planStart = task.startDate ? new Date(task.startDate) : new Date(project.startDate)
                         const planLength = task.estimatedDays || 1
-                        const planDay = Math.max(1, planStart.getDate())
                         const planEnd = new Date(planStart)
                         planEnd.setDate(planEnd.getDate() + planLength - 1)
+
                         const overdue = task.status !== 'done' && new Date(task.deadline) < new Date()
-                        const actualLength = task.status === 'done' && task.actualDays ? task.actualDays : task.status === 'in_progress' && task.startDate ? Math.max(1, Math.ceil((new Date().getTime() - new Date(task.startDate).getTime()) / (1000 * 60 * 60 * 24))) : 0
+                        let actualStart: Date | null = null
+                        let actualEnd: Date | null = null
+
+                        if (task.status === 'done' && task.startDate) {
+                          actualStart = new Date(task.startDate)
+                          if (task.completedAt) {
+                            actualEnd = new Date(task.completedAt)
+                          } else if (task.actualDays && task.actualDays > 0) {
+                            actualEnd = new Date(actualStart)
+                            actualEnd.setDate(actualEnd.getDate() + task.actualDays - 1)
+                          }
+                        } else if (task.status === 'in_progress' && task.startDate) {
+                          actualStart = new Date(task.startDate)
+                          actualEnd = new Date()
+                        }
+
                         const statusColor = task.status === 'done' ? 'bg-emerald-500' : task.status === 'in_progress' ? 'bg-amber-400' : overdue ? 'bg-rose-500' : 'bg-slate-300'
                         return (
-                          <div key={task.id} className="grid grid-cols-[200px_repeat(31,40px)] items-center gap-0 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                          <div key={task.id} style={{ gridTemplateColumns: timelineGridTemplate }} className="grid items-center gap-0 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
                             <div>
                               <div className="text-sm font-semibold text-slate-900">{task.title}</div>
                               <div className="mt-1 text-xs text-slate-500">{task.startDate || 'Chưa rõ'} → {task.deadline}</div>
                             </div>
-                            {Array.from({ length: 31 }, (_, index) => {
+                            {Array.from({ length: daysInMonth }, (_, index) => {
                               const day = index + 1
-                              const isPlanned = day >= planDay && day < planDay + planLength
-                              const isActual = day >= planDay && day < planDay + actualLength
+                              const cellDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), day)
+                              const isPlanned = dateInRange(cellDate, planStart, planEnd)
+                              const isActual = actualStart && actualEnd ? dateInRange(cellDate, actualStart, actualEnd) : false
                               return (
                                 <div key={day} className={`h-8 border-l border-slate-200 ${isPlanned ? 'bg-emerald-100' : ''} ${isActual ? statusColor : ''}`}></div>
                               )
