@@ -35,7 +35,18 @@ function getErrorMessage(error: unknown) {
   return 'Có lỗi khi lưu dữ liệu lên Supabase'
 }
 
-const stepTitles = ['Khách hàng', 'Dự án', 'Hạng mục & Tài chính', 'Xác nhận']
+const stepTitles = ['Khách hàng', 'Dự án', 'Tài chính', 'Xác nhận']
+
+function inferCategoryFromProjectTypeName(projectTypeName: string): 'new_construction' | 'renovation' | 'other' {
+  const normalizedName = projectTypeName.toLowerCase()
+  if (normalizedName.includes('cải tạo') || normalizedName.includes('sua chua') || normalizedName.includes('renov')) {
+    return 'renovation'
+  }
+  if (normalizedName.includes('xây') || normalizedName.includes('xay') || normalizedName.includes('new')) {
+    return 'new_construction'
+  }
+  return 'other'
+}
 
 interface DraftData {
   step: number
@@ -282,6 +293,15 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
       setSelectedClientId(selectedCustomerId)
     }
   }, [selectedCustomerId, selectedClientId])
+
+  useEffect(() => {
+    if (!selectedProjectType) {
+      return
+    }
+
+    setCategory(inferCategoryFromProjectTypeName(selectedProjectType.name))
+    setCategoryNote('')
+  }, [selectedProjectType])
 
   useEffect(() => {
     if (!selectedProjectTypeId) {
@@ -760,50 +780,6 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
 
         {step === 3 && (
           <div className="space-y-6">
-            <div className="rounded-3xl border border-slate-200 p-6">
-              <p className="text-sm font-semibold text-slate-900">Loại dự án</p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                <button
-                  type="button"
-                  className={`rounded-3xl border p-6 text-left ${category === 'new_construction' ? 'border-brand-900 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
-                  onClick={() => setCategory('new_construction')}
-                >
-                  <p className="text-3xl">🏗</p>
-                  <p className="mt-3 font-semibold text-slate-900">Xây mới</p>
-                  <p className="mt-2 text-sm text-slate-500">Công trình xây từ đầu</p>
-                </button>
-                <button
-                  type="button"
-                  className={`rounded-3xl border p-6 text-left ${category === 'renovation' ? 'border-brand-900 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
-                  onClick={() => setCategory('renovation')}
-                >
-                  <p className="text-3xl">🔨</p>
-                  <p className="mt-3 font-semibold text-slate-900">Cải tạo</p>
-                  <p className="mt-2 text-sm text-slate-500">Sửa chữa, nâng cấp công trình</p>
-                </button>
-                <button
-                  type="button"
-                  className={`rounded-3xl border p-6 text-left ${category === 'other' ? 'border-brand-900 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
-                  onClick={() => setCategory('other')}
-                >
-                  <p className="text-3xl">📋</p>
-                  <p className="mt-3 font-semibold text-slate-900">Khác</p>
-                  <p className="mt-2 text-sm text-slate-500">Nhập mô tả loại hình thi công</p>
-                </button>
-              </div>
-              {category === 'other' ? (
-                <div className="mt-5 space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700">Mô tả loại hình thi công *</label>
-                  <textarea
-                    className="min-h-[120px] w-full rounded-3xl border border-slate-200 px-4 py-3"
-                    value={categoryNote}
-                    onChange={(event) => setCategoryNote(event.target.value)}
-                    placeholder="Mô tả chi tiết loại công trình"
-                  />
-                </div>
-              ) : null}
-            </div>
-
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-2 lg:col-span-1">
                 <label className="block text-sm font-semibold text-slate-700">Giá trị hợp đồng (VNĐ) *</label>
@@ -903,9 +879,8 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
               </div>
             </div>
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
-              <p className="text-sm font-semibold text-slate-900">Tổng quan hạng mục</p>
-              <p className="mt-3 text-sm text-slate-600">Loại: {category === 'new_construction' ? 'Xây mới' : category === 'renovation' ? 'Cải tạo' : 'Khác'}</p>
-              {category === 'other' ? <p className="mt-2 text-sm text-slate-600">{categoryNote}</p> : null}
+              <p className="text-sm font-semibold text-slate-900">Tổng quan triển khai</p>
+              <p className="mt-3 text-sm text-slate-600">Loại dự án: {selectedProjectType?.name || 'Chưa chọn'}</p>
               <p className="mt-4 text-sm text-slate-600">Giám sát: {selectedSupervisors.map((id) => supervisors.find((member) => member.id === id)?.name).filter(Boolean).join(', ')}</p>
               <p className="mt-2 text-sm text-slate-600">Webhook: {webhookUrl || 'Chưa cấu hình'}</p>
               <p className="mt-2 text-sm text-slate-600">Tệp đính kèm: {attachments.length} file</p>
