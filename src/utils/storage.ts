@@ -572,6 +572,15 @@ export async function updateStaffRecord(staffId: string, changes: Partial<Staff>
   if (error) throw error
 }
 
+export async function deleteStaffRecord(staffId: string): Promise<void> {
+  const { error } = await supabase
+    .from('staff')
+    .delete()
+    .eq('id', staffId)
+
+  if (error) throw error
+}
+
 export async function loadCustomers(): Promise<Customer[]> {
   const { data, error } = await supabase
     .from('customers')
@@ -590,6 +599,15 @@ export async function createCustomerRecord(customer: Customer): Promise<Customer
   if (error) throw error
 
   return mapCustomerFromRow(data)
+}
+
+export async function deleteCustomerRecord(customerId: string): Promise<void> {
+  const { error } = await supabase
+    .from('customers')
+    .delete()
+    .eq('id', customerId)
+
+  if (error) throw error
 }
 
 export async function saveCustomers(customers: Customer[]): Promise<void> {

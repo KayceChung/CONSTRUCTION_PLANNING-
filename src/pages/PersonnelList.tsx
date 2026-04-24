@@ -5,6 +5,8 @@ import { useProjectStore } from '../stores/useProjectStore'
 import { useStaffStore } from '../stores/useStaffStore'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
+import ConfirmModal from '../components/modals/ConfirmModal'
+import { Staff } from '../types'
 
 type PersonnelStatus = 'pending' | 'active'
 
@@ -28,8 +30,11 @@ export default function PersonnelList({ showToast }: PersonnelListProps) {
   const logout = useAuthStore((state) => state.logout)
   const staff = useStaffStore((state) => state.staff)
   const updateStaff = useStaffStore((state) => state.updateStaff)
+  const deleteStaff = useStaffStore((state) => state.deleteStaff)
   const projects = useProjectStore((state) => state.projects)
   const [filter, setFilter] = useState<'all' | PersonnelStatus>('all')
+  const [activeStaff, setActiveStaff] = useState<Staff | null>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const rows = useMemo(() => {
     return staff.filter((item) => {
@@ -119,6 +124,18 @@ export default function PersonnelList({ showToast }: PersonnelListProps) {
                           >
                             Sửa
                           </button>
+                          {user?.role === 'manager' ? (
+                            <button
+                              type="button"
+                              className="rounded-2xl bg-rose-100 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-200"
+                              onClick={() => {
+                                setActiveStaff(member)
+                                setShowDeleteModal(true)
+                              }}
+                            >
+                              Xóa
+                            </button>
+                          ) : null}
                           {user?.role === 'manager' && !member.isActive ? (
                             <>
                               <button
@@ -177,5 +194,25 @@ export default function PersonnelList({ showToast }: PersonnelListProps) {
         </div>
       </div>
     </div>
+
+      {showDeleteModal && activeStaff ? (
+        <ConfirmModal
+          title="Xóa nhân sự"
+          description={`Bạn có chắc muốn xóa nhân sự "${activeStaff.name}"? Hành động này không thể hoàn tác.`}
+          confirmLabel="Xóa"
+          onCancel={() => setShowDeleteModal(false)}
+          onConfirm={async () => {
+            try {
+              await deleteStaff(activeStaff.id)
+              setShowDeleteModal(false)
+              setActiveStaff(null)
+              showToast(`Đã xóa nhân sự "${activeStaff.name}"`, 'success')
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Không thể xóa nhân sự'
+              showToast(message, 'error')
+            }
+          }}
+        />
+      ) : null}
   )
 }

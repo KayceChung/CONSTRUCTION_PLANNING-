@@ -45,6 +45,7 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
   const updateTask = useProjectStore((state) => state.updateTask)
   const updateProject = useProjectStore((state) => state.updateProject)
   const addTask = useProjectStore((state) => state.addTask)
+  const deleteTask = useProjectStore((state) => state.deleteTask)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false)
   const [showEditProjectModal, setShowEditProjectModal] = useState(false)
@@ -783,6 +784,9 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
           onClose={() => setSelectedTask(null)}
           onSave={saveTaskChanges}
           onUploadImages={uploadImages}
+          onDelete={() => {
+            setShowConfirm(true)
+          }}
         />
       ) : null}
       {showEditProjectModal ? (
@@ -796,11 +800,20 @@ export default function ProjectDetail({ showToast }: ProjectDetailProps) {
       {showConfirm ? (
         <ConfirmModal
           title="Xóa hạng mục"
-          description="Tính năng này sẽ xóa hạng mục khỏi dự án. Bạn có chắc không?"
+          description={`Bạn có chắc muốn xóa hạng mục "${selectedTask?.title}"? Hành động này không thể hoàn tác.`}
+          confirmLabel="Xóa"
           onCancel={() => setShowConfirm(false)}
-          onConfirm={() => {
-            setShowConfirm(false)
-            showToast('Hạng mục đã được xóa', 'success')
+          onConfirm={async () => {
+            if (!selectedTask || !project) return
+            try {
+              await deleteTask(project.id, selectedTask.id)
+              setShowConfirm(false)
+              setSelectedTask(null)
+              showToast('Hạng mục đã được xóa', 'success')
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Không thể xóa hạng mục'
+              showToast(message, 'error')
+            }
           }}
         />
       ) : null}

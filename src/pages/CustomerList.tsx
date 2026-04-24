@@ -7,6 +7,8 @@ import { useAuthStore } from '../stores/useAuthStore'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import NewCustomerModal from '../components/modals/NewCustomerModal'
+import ConfirmModal from '../components/modals/ConfirmModal'
+import { Customer } from '../types'
 
 const sortOptions = [
   { value: 'name', label: 'Tên A-Z' },
@@ -19,12 +21,15 @@ export default function CustomerList({ showToast }: { showToast: (message: strin
   const user = useAuthStore((state) => state.user)
   const customers = useCustomerStore((state) => state.customers)
   const addCustomer = useCustomerStore((state) => state.addCustomer)
+  const deleteCustomer = useCustomerStore((state) => state.deleteCustomer)
   const projects = useProjectStore((state) => state.projects)
 
   const [searchText, setSearchText] = useState('')
   const [debtFilter, setDebtFilter] = useState<'all' | 'debt' | 'clear'>('all')
   const [sortKey, setSortKey] = useState('name')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [activeCustomer, setActiveCustomer] = useState<Customer | null>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const handleAddCustomer = async (customerData: {
     fullName: string
@@ -174,13 +179,27 @@ export default function CustomerList({ showToast }: { showToast: (message: strin
                       <td className="px-4 py-4">{hasDebt ? '⚠️ Còn nợ' : 'Không nợ'}</td>
                       <td className="px-4 py-4">{latestProject ? latestProject.name : 'Không có'}</td>
                       <td className="px-4 py-4">
-                        <button
-                          type="button"
-                          className="rounded-2xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-700"
-                          onClick={() => navigate(`/customers/${customer.id}`)}
-                        >
-                          Xem
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="rounded-2xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-700"
+                            onClick={() => navigate(`/customers/${customer.id}`)}
+                          >
+                            Xem
+                          </button>
+                          {user?.role === 'manager' ? (
+                            <button
+                              type="button"
+                              className="rounded-2xl bg-rose-100 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-200"
+                              onClick={() => {
+                                setActiveCustomer(customer)
+                                setShowDeleteModal(true)
+                              }}
+                            >
+                              Xóa
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -207,6 +226,26 @@ export default function CustomerList({ showToast }: { showToast: (message: strin
       </div>
 
       <NewCustomerModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleAddCustomer} />
+
+      {showDeleteModal && activeCustomer ? (
+        <ConfirmModal
+          title="Xóa khách hàng"
+          description={`Bạn có chắc muốn xóa khách hàng "${activeCustomer.fullName}"? Hành động này không thể hoàn tác.`}
+          confirmLabel="Xóa"
+          onCancel={() => setShowDeleteModal(false)}
+          onConfirm={async () => {
+            try {
+              await deleteCustomer(activeCustomer.id)
+              setShowDeleteModal(false)
+              setActiveCustomer(null)
+              showToast(`Đã xóa khách hàng "${activeCustomer.fullName}"`, 'success')
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Không thể xóa khách hàng'
+              showToast(message, 'error')
+            }
+          }}
+        />
+      ) : null}
     </div>
   )
 }

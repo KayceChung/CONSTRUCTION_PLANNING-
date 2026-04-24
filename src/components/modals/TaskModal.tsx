@@ -22,6 +22,7 @@ interface TaskModalProps {
   onClose: () => void
   onSave: (changes: Partial<Task>) => void
   onUploadImages: (files: FileList) => void
+  onDelete?: () => void
 }
 
 function clampNumber(value: number): number {
@@ -46,7 +47,7 @@ function isVideoUrl(src: string) {
   return lower.startsWith('data:video/') || lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.ogg')
 }
 
-export default function TaskModal({ project, task, user, onClose, onSave, onUploadImages }: TaskModalProps) {
+export default function TaskModal({ project, task, user, onClose, onSave, onUploadImages, onDelete }: TaskModalProps) {
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null)
   const [startDate, setStartDate] = useState(task.startDate || '')
   const [estimatedDays, setEstimatedDays] = useState<string>(task.estimatedDays?.toString() || '')
@@ -331,6 +332,11 @@ export default function TaskModal({ project, task, user, onClose, onSave, onUplo
               <Button type="button" variant="ghost" className="border border-slate-200 text-slate-700" onClick={onClose}>
                 Hủy
               </Button>
+              {onDelete && user.role === 'manager' ? (
+                <Button type="button" variant="ghost" className="border border-rose-200 text-rose-700 hover:bg-rose-50" onClick={onDelete}>
+                  Xóa hạng mục
+                </Button>
+              ) : null}
               <Button type="button" onClick={submit}>
                 Lưu thay đổi
               </Button>

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { InteractionLog, Customer } from '../types'
-import { createCustomerRecord, loadInteractionLogs, loadCustomers, saveInteractionLogs, saveCustomers } from '../utils/storage'
+import { createCustomerRecord, deleteCustomerRecord, loadInteractionLogs, loadCustomers, saveInteractionLogs, saveCustomers } from '../utils/storage'
 
 interface CustomerState {
   customers: Customer[]
@@ -37,8 +37,8 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
     set({ customers: next })
   },
   deleteCustomer: async (customerId) => {
+    await deleteCustomerRecord(customerId)
     const next = get().customers.filter((customer) => customer.id !== customerId)
-    await saveCustomers(next)
     set({ customers: next })
   },
   addInteractionLog: async (log) => {
