@@ -47,8 +47,9 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
   }
 
   return (
-    <aside className="hidden w-80 shrink-0 flex-col gap-6 border-r border-slate-200 bg-white px-6 py-6 lg:flex">
-      <div>
+    <aside className="hidden h-screen w-80 shrink-0 flex-col border-r border-slate-200 bg-white px-6 py-6 lg:flex">
+      <div className="flex min-h-0 flex-1 flex-col gap-6">
+        <div>
         <div className="mb-8 inline-flex items-center gap-3 text-2xl font-semibold text-blue-600">
           {!logoError ? (
             <img
@@ -66,9 +67,9 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           <p className="font-semibold text-slate-900">Xin chào, {user.name}</p>
           <p>Vai trò: {user.role === 'manager' ? 'Quản lý' : 'Giám sát'}</p>
         </div>
-      </div>
+        </div>
 
-      <nav className="space-y-2">
+      <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {navItems.map((item) => {
           const Icon = item.icon
           const active = location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
@@ -88,7 +89,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         })}
       </nav>
 
-      <div className="mt-auto space-y-3">
+      <div className="space-y-3 pt-2">
         <div className="rounded-3xl bg-slate-50 p-4 text-sm text-slate-700">
           <p className="font-semibold">Thông tin tài khoản</p>
           <p>{user.name}</p>
@@ -104,6 +105,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           <LogOut size={16} className="mr-2" /> 
           {isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
         </Button>
+      </div>
       </div>
     </aside>
   )
