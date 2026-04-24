@@ -18,8 +18,6 @@ interface LocationState {
   customerId?: string
 }
 
-const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/
-
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('vi-VN').format(value)
 }
@@ -43,12 +41,6 @@ interface DraftData {
   step: number
   selectedCustomerId: string
   selectedProjectTypeId: string
-  newCustomerName: string
-  newCustomerPhone: string
-  newCustomerPhone2: string
-  newCustomerEmail: string
-  newCustomerAddress: string
-  newCustomerNote: string
   projectName: string
   projectFullAddress: string
   projectWard: string
@@ -58,6 +50,7 @@ interface DraftData {
   distanceKm: string
   projectStart: string
   projectEnd: string
+  estimatedDurationDays: string
   selectedSupervisors: string[]
   webhookUrl: string
   selectedClientId: string
@@ -67,12 +60,10 @@ interface DraftData {
   paidAmount: string
   paymentNote: string
   attachments: Attachment[]
-  pendingNewCustomer: { fullName: string; phone: string; phone2?: string; email?: string; address?: string; note?: string } | null
 }
 
 const DRAFT_KEY = 'project-creation-draft'
-
-const PENDING_CUSTOMER_OPTION = '__pending_customer__'
+const MAX_VISIBLE_CUSTOMERS = 5
 
 export default function CreateProject({ showToast }: { showToast: (message: string, type?: 'success' | 'error' | 'info') => void }) {
   const navigate = useNavigate()
@@ -106,12 +97,6 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
       step,
       selectedCustomerId,
       selectedProjectTypeId,
-      newCustomerName,
-      newCustomerPhone,
-      newCustomerPhone2,
-      newCustomerEmail,
-      newCustomerAddress,
-      newCustomerNote,
       projectName,
       projectFullAddress,
       projectWard,
@@ -121,6 +106,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
       distanceKm,
       projectStart,
       projectEnd,
+      estimatedDurationDays,
       selectedSupervisors,
       webhookUrl,
       selectedClientId,
@@ -129,8 +115,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
       contractValue,
       paidAmount,
       paymentNote,
-      attachments,
-      pendingNewCustomer
+      attachments
     }
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
     showToast('Đã lưu bản nháp', 'info')
@@ -144,12 +129,6 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
         setStep(draft.step)
         setSelectedCustomerId(draft.selectedCustomerId)
         setSelectedProjectTypeId(draft.selectedProjectTypeId)
-        setNewCustomerName(draft.newCustomerName)
-        setNewCustomerPhone(draft.newCustomerPhone)
-        setNewCustomerPhone2(draft.newCustomerPhone2)
-        setNewCustomerEmail(draft.newCustomerEmail)
-        setNewCustomerAddress(draft.newCustomerAddress)
-        setNewCustomerNote(draft.newCustomerNote)
         setProjectName(draft.projectName)
         setProjectFullAddress(draft.projectFullAddress)
         setProjectWard(draft.projectWard)
@@ -159,6 +138,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
         setDistanceKm(draft.distanceKm)
         setProjectStart(draft.projectStart)
         setProjectEnd(draft.projectEnd)
+        setEstimatedDurationDays(draft.estimatedDurationDays || '')
         setSelectedSupervisors(draft.selectedSupervisors)
         setWebhookUrl(draft.webhookUrl)
         setSelectedClientId(draft.selectedClientId)
@@ -168,7 +148,6 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
         setPaidAmount(draft.paidAmount)
         setPaymentNote(draft.paymentNote)
         setAttachments(draft.attachments)
-        setPendingNewCustomer(draft.pendingNewCustomer)
         showToast('Đã tải bản nháp', 'info')
       } catch (error) {
         console.error('Failed to load draft:', error)
@@ -182,15 +161,9 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   }
 
   const [step, setStep] = useState(1)
-  const [searchText, setSearchText] = useState('')
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('')
   const [selectedCustomerId, setSelectedCustomerId] = useState(existingCustomer?.id || '')
   const [selectedProjectTypeId, setSelectedProjectTypeId] = useState('')
-  const [newCustomerName, setNewCustomerName] = useState('')
-  const [newCustomerPhone, setNewCustomerPhone] = useState('')
-  const [newCustomerPhone2, setNewCustomerPhone2] = useState('')
-  const [newCustomerEmail, setNewCustomerEmail] = useState('')
-  const [newCustomerAddress, setNewCustomerAddress] = useState('')
-  const [newCustomerNote, setNewCustomerNote] = useState('')
 
   const [projectName, setProjectName] = useState('')
   const [projectFullAddress, setProjectFullAddress] = useState('')
@@ -201,12 +174,12 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   const [distanceKm, setDistanceKm] = useState('')
   const [projectStart, setProjectStart] = useState('')
   const [projectEnd, setProjectEnd] = useState('')
+  const [estimatedDurationDays, setEstimatedDurationDays] = useState('')
   const [selectedSupervisors, setSelectedSupervisors] = useState<string[]>([])
   const [webhookUrl, setWebhookUrl] = useState('')
   const [selectedClientId, setSelectedClientId] = useState('')
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false)
   const [showTemplateEditor, setShowTemplateEditor] = useState(false)
-  const [pendingNewCustomer, setPendingNewCustomer] = useState<{ fullName: string; phone: string; phone2?: string; email?: string; address?: string; note?: string } | null>(null)
 
   const [category, setCategory] = useState<'new_construction' | 'renovation' | 'other'>('new_construction')
   const [categoryNote, setCategoryNote] = useState('')
@@ -226,13 +199,37 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
     [getTaskTemplatesByProjectType, selectedProjectTypeId]
   )
 
-  const filteredCustomers = useMemo(() => {
-    const query = searchText.trim().toLowerCase()
-    if (!query) return customers
-    return customers.filter((customer) =>
-      customer.fullName.toLowerCase().includes(query) || customer.phone.includes(query)
-    )
-  }, [customers, searchText])
+  const compactCustomers = useMemo(() => customers.slice(0, MAX_VISIBLE_CUSTOMERS), [customers])
+
+  const getVisibleCustomers = (activeCustomerId: string) => {
+    const normalizedQuery = customerSearchQuery.trim().toLowerCase()
+    const baseCustomers = normalizedQuery
+      ? customers.filter((customer) => {
+          const haystack = [customer.fullName, customer.phone, customer.email || ''].join(' ').toLowerCase()
+          return haystack.includes(normalizedQuery)
+        })
+      : compactCustomers
+
+    if (!activeCustomerId) {
+      return baseCustomers.slice(0, MAX_VISIBLE_CUSTOMERS)
+    }
+
+    const selected = customers.find((customer) => customer.id === activeCustomerId)
+    if (!selected) {
+      return baseCustomers.slice(0, MAX_VISIBLE_CUSTOMERS)
+    }
+
+    const hasSelected = baseCustomers.some((customer) => customer.id === selected.id)
+    if (hasSelected) {
+      return baseCustomers.slice(0, MAX_VISIBLE_CUSTOMERS)
+    }
+
+    return [selected, ...baseCustomers].slice(0, MAX_VISIBLE_CUSTOMERS)
+  }
+
+  const step1CustomerOptions = useMemo(() => getVisibleCustomers(selectedCustomerId), [compactCustomers, customerSearchQuery, customers, selectedCustomerId])
+
+  const step2CustomerOptions = useMemo(() => getVisibleCustomers(selectedClientId), [compactCustomers, customerSearchQuery, customers, selectedClientId])
 
   const handleNewCustomerSubmit = async (customerData: {
     fullName: string
@@ -252,7 +249,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
       await addCustomer(newCustomer)
       setSelectedCustomerId(newCustomer.id)
       setSelectedClientId(newCustomer.id)
-      setPendingNewCustomer(customerData)
+      showToast('Đã thêm khách hàng mới và tự động chọn', 'success')
     } catch (error) {
       console.error('Error creating customer during project flow:', error)
       showToast(getErrorMessage(error), 'error')
@@ -269,6 +266,25 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
     }
   }, [existingCustomer])
 
+  useEffect(() => {
+    if (selectedCustomerId && !selectedClientId) {
+      setSelectedClientId(selectedCustomerId)
+    }
+  }, [selectedCustomerId, selectedClientId])
+
+  useEffect(() => {
+    if (!projectStart) return
+    const duration = Number(estimatedDurationDays)
+    if (!Number.isFinite(duration) || duration <= 0) return
+
+    const start = new Date(projectStart)
+    if (Number.isNaN(start.getTime())) return
+
+    const autoEnd = new Date(start)
+    autoEnd.setDate(autoEnd.getDate() + duration - 1)
+    setProjectEnd(autoEnd.toISOString().slice(0, 10))
+  }, [projectStart, estimatedDurationDays])
+
   const daysCount = useMemo(() => {
     if (!projectStart || !projectEnd) return 0
     const start = new Date(projectStart)
@@ -283,12 +299,9 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   const remainingValue = contractValueNumber - paidAmountNumber
 
   const selectedCustomer = useMemo(
-    () => customers.find((customer) => customer.id === selectedCustomerId) || null,
-    [customers, selectedCustomerId]
+    () => customers.find((customer) => customer.id === (selectedClientId || selectedCustomerId)) || null,
+    [customers, selectedClientId, selectedCustomerId]
   )
-
-  const hasInlineCustomer = Boolean(newCustomerName.trim() && phoneRegex.test(newCustomerPhone))
-  const customerSelectionValue = selectedClientId || (pendingNewCustomer ? PENDING_CUSTOMER_OPTION : '')
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
@@ -321,8 +334,8 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
     setAttachments((current) => current.filter((item) => item.id !== id))
   }
 
-  const canProceedStep1 = selectedCustomerId || (newCustomerName && phoneRegex.test(newCustomerPhone))
-  const canProceedStep2 = (selectedClientId || pendingNewCustomer || hasInlineCustomer) && projectName && selectedProjectTypeId && projectFullAddress && projectProvince && projectStart && projectEnd && selectedSupervisors.length > 0
+  const canProceedStep1 = Boolean(selectedCustomerId)
+  const canProceedStep2 = Boolean(selectedClientId && projectName && selectedProjectTypeId && projectFullAddress && projectProvince && projectStart && projectEnd && Number(estimatedDurationDays) > 0 && selectedSupervisors.length > 0)
   const canProceedStep3 = contractValueNumber > 0 && paidAmountNumber >= 0
 
   const handleCreate = async () => {
@@ -338,35 +351,21 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
 
     setIsSubmitting(true)
     try {
-      const customerId = selectedClientId || selectedCustomerId || uuidv4()
+      const customerId = selectedClientId || selectedCustomerId
+      if (!customerId) {
+        showToast('Vui lòng chọn khách hàng trước khi tạo dự án', 'error')
+        return
+      }
       const projectId = uuidv4()
       const selectedClient = customers.find((c) => c.id === customerId)
 
-      if (!selectedClient && pendingNewCustomer) {
-        const customer: Customer = {
-          id: customerId,
-          ...pendingNewCustomer,
-          createdAt: new Date().toISOString(),
-          projectIds: [projectId]
-        }
-        await addCustomer(customer)
-      } else if (selectedClient) {
+      if (selectedClient) {
         await updateCustomer(selectedClient.id, {
           projectIds: Array.from(new Set([...selectedClient.projectIds, projectId]))
         })
-      } else if (!selectedClient && selectedCustomerId) {
-        const customer: Customer = {
-          id: customerId,
-          fullName: newCustomerName,
-          phone: newCustomerPhone,
-          phone2: newCustomerPhone2 || undefined,
-          email: newCustomerEmail || undefined,
-          address: newCustomerAddress || undefined,
-          note: newCustomerNote || undefined,
-          createdAt: new Date().toISOString(),
-          projectIds: [projectId]
-        }
-        await addCustomer(customer)
+      } else {
+        showToast('Không tìm thấy khách hàng đã chọn. Vui lòng chọn lại.', 'error')
+        return
       }
 
       let tasks: Task[] = []
@@ -396,7 +395,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
         id: projectId,
         name: projectName,
         location: projectFullAddress,
-        client: selectedClient ? selectedClient.fullName : pendingNewCustomer ? pendingNewCustomer.fullName : (selectedCustomer ? selectedCustomer.fullName : newCustomerName),
+        client: selectedClient.fullName,
         customerId,
         category,
         categoryNote: category === 'other' ? categoryNote : undefined,
@@ -436,8 +435,8 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
   const stepBoxes = [1, 2, 3, 4]
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-3xl bg-white p-6 shadow-sm">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="rounded-3xl bg-white p-4 shadow-sm sm:p-6 lg:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.2em] text-brand-500">Tạo dự án mới</p>
@@ -468,143 +467,94 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
         </div>
       </div>
 
-      <div className="rounded-3xl bg-white p-6 shadow-sm">
+      <div className="rounded-3xl bg-white p-4 shadow-sm sm:p-6 lg:p-8">
         {step === 1 && (
           <div className="space-y-6">
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-              <p className="text-sm font-semibold text-slate-900">Tìm khách hàng hiện có</p>
-              <input
-                className="mt-4 w-full rounded-3xl border border-slate-200 bg-white px-4 py-3"
-                placeholder="Tìm theo tên hoặc số điện thoại..."
-                value={searchText}
-                onChange={(event) => setSearchText(event.target.value)}
-              />
-            </div>
-            <div className="grid gap-3 lg:grid-cols-2">
-              {filteredCustomers.length > 0 ? (
-                filteredCustomers.map((customer) => (
-                  <button
-                    key={customer.id}
-                    type="button"
-                    className={`rounded-3xl border p-4 text-left transition ${customer.id === selectedCustomerId ? 'border-brand-900 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
-                    onClick={() => {
-                      setSelectedCustomerId(customer.id)
-                      setSelectedClientId(customer.id)
-                      setPendingNewCustomer(null)
-                      setNewCustomerName('')
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 sm:p-6">
+              <p className="text-sm font-semibold text-slate-900">Khách hàng</p>
+              <div className="mt-4 flex flex-col gap-4 lg:gap-3 lg:flex-row lg:items-end">
+                <div className="w-full lg:flex-1">
+                  <input
+                    className="min-h-[44px] w-full rounded-3xl border border-slate-200 bg-white px-4 py-3"
+                    value={customerSearchQuery}
+                    onChange={(event) => setCustomerSearchQuery(event.target.value)}
+                    placeholder="Tìm thêm theo tên, số điện thoại hoặc email"
+                  />
+                  <label className="mt-3 block text-sm font-semibold text-slate-700">Chọn khách hàng *</label>
+                  <select
+                    className="mt-2 min-h-[44px] w-full rounded-3xl border border-slate-200 bg-white px-4 py-3"
+                    value={selectedCustomerId}
+                    onChange={(event) => {
+                      setSelectedCustomerId(event.target.value)
+                      setSelectedClientId(event.target.value)
                     }}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-semibold text-slate-900">{customer.fullName}</p>
-                      {customer.id === selectedCustomerId ? <Badge label="Đã chọn" type="primary" /> : null}
-                    </div>
-                    <p className="mt-2 text-sm text-slate-600">📱 {customer.phone}</p>
-                    {customer.email ? <p className="mt-1 text-sm text-slate-600">✉ {customer.email}</p> : null}
-                    {customer.address ? <p className="mt-1 text-sm text-slate-600">📍 {customer.address}</p> : null}
-                    <p className="mt-2 text-sm text-slate-500">{customer.projectIds.length} dự án trước</p>
-                  </button>
-                ))
-              ) : (
-                <div className="rounded-3xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-                  Không tìm thấy khách hàng.
+                    <option value="">Chọn từ danh sách khách hàng gần đây</option>
+                    {step1CustomerOptions.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.fullName} · {customer.phone}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs text-slate-500">Dropdown chỉ hiển thị tối đa {MAX_VISIBLE_CUSTOMERS} kết quả để biểu mẫu gọn. Có thể tìm trên toàn bộ danh sách ở ô phía trên.</p>
                 </div>
-              )}
-            </div>
-            <div className="rounded-3xl border border-slate-200 p-6">
-              <p className="text-sm font-semibold text-slate-900">Tạo khách hàng mới</p>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700">Họ và tên *</label>
-                  <input
-                    className="w-full rounded-3xl border border-slate-200 px-4 py-3"
-                    value={newCustomerName}
-                    onChange={(event) => setNewCustomerName(event.target.value)}
-                    placeholder="VD: Nguyễn Văn A"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700">Số điện thoại chính *</label>
-                  <input
-                    className="w-full rounded-3xl border border-slate-200 px-4 py-3"
-                    value={newCustomerPhone}
-                    onChange={(event) => setNewCustomerPhone(event.target.value)}
-                    placeholder="VD: 0901234567"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700">Số phụ / Zalo</label>
-                  <input
-                    className="w-full rounded-3xl border border-slate-200 px-4 py-3"
-                    value={newCustomerPhone2}
-                    onChange={(event) => setNewCustomerPhone2(event.target.value)}
-                    placeholder="VD: 0912345678"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700">Email</label>
-                  <input
-                    className="w-full rounded-3xl border border-slate-200 px-4 py-3"
-                    value={newCustomerEmail}
-                    onChange={(event) => setNewCustomerEmail(event.target.value)}
-                    placeholder="VD: email@example.com"
-                  />
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <label className="block text-sm font-semibold text-slate-700">Địa chỉ thường trú</label>
-                  <input
-                    className="w-full rounded-3xl border border-slate-200 px-4 py-3"
-                    value={newCustomerAddress}
-                    onChange={(event) => setNewCustomerAddress(event.target.value)}
-                    placeholder="VD: 123/12 Nguyễn Văn Linh, Q7"
-                  />
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <label className="block text-sm font-semibold text-slate-700">Ghi chú nội bộ</label>
-                  <textarea
-                    className="min-h-[120px] w-full rounded-3xl border border-slate-200 px-4 py-3"
-                    value={newCustomerNote}
-                    onChange={(event) => setNewCustomerNote(event.target.value)}
-                    placeholder="VD: Khách thích báo cáo qua Zalo"
-                  />
-                </div>
+                <Button type="button" variant="secondary" className="min-h-[44px] w-full lg:w-auto" onClick={() => setShowNewCustomerModal(true)}>
+                  + Thêm khách hàng mới
+                </Button>
               </div>
+
+              {selectedCustomer ? (
+                <div className="mt-4 rounded-3xl border border-brand-100 bg-white p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold text-slate-900">{selectedCustomer.fullName}</p>
+                    <Badge label="Đã chọn" type="primary" />
+                  </div>
+                  <p className="mt-2 text-sm text-slate-600">📱 {selectedCustomer.phone}</p>
+                  {selectedCustomer.email ? <p className="mt-1 text-sm text-slate-600">✉ {selectedCustomer.email}</p> : null}
+                  {selectedCustomer.address ? <p className="mt-1 text-sm text-slate-600">📍 {selectedCustomer.address}</p> : null}
+                </div>
+              ) : null}
             </div>
           </div>
         )}
 
         {step === 2 && (
           <div className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="space-y-2 lg:col-span-2">
                 <label className="block text-sm font-semibold text-slate-700">Chủ đầu tư *</label>
-                <select
-                  className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3"
-                  value={customerSelectionValue}
-                  onChange={(event) => {
-                    if (event.target.value === 'new') {
-                      setShowNewCustomerModal(true)
-                    } else if (event.target.value === PENDING_CUSTOMER_OPTION) {
-                      return
-                    } else {
-                      setSelectedClientId(event.target.value)
-                      setSelectedCustomerId(event.target.value)
-                      setPendingNewCustomer(null)
-                    }
-                  }}
-                >
-                  <option value="">Chọn chủ đầu tư</option>
-                  {pendingNewCustomer ? <option value={PENDING_CUSTOMER_OPTION}>Khách mới: {pendingNewCustomer.fullName}</option> : null}
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>{customer.fullName}</option>
-                  ))}
-                  <option value="new">+ Tạo khách hàng mới</option>
-                </select>
-                {pendingNewCustomer ? <p className="text-xs text-slate-500">Khách hàng mới sẽ được tạo khi bạn xác nhận dự án.</p> : null}
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+                  <div className="w-full lg:flex-1">
+                    <input
+                      className="min-h-[44px] w-full rounded-3xl border border-slate-200 bg-white px-4 py-3"
+                      value={customerSearchQuery}
+                      onChange={(event) => setCustomerSearchQuery(event.target.value)}
+                      placeholder="Tìm khách hàng trong toàn bộ danh sách"
+                    />
+                    <select
+                      className="mt-2 min-h-[44px] w-full rounded-3xl border border-slate-200 bg-white px-4 py-3"
+                      value={selectedClientId}
+                      onChange={(event) => {
+                        setSelectedClientId(event.target.value)
+                        setSelectedCustomerId(event.target.value)
+                      }}
+                    >
+                      <option value="">Chọn chủ đầu tư</option>
+                      {step2CustomerOptions.map((customer) => (
+                        <option key={customer.id} value={customer.id}>{customer.fullName}</option>
+                      ))}
+                    </select>
+                    <p className="mt-2 text-xs text-slate-500">Danh sách rút gọn để thao tác nhanh. Ô tìm kiếm vẫn quét toàn bộ khách hàng hiện có.</p>
+                  </div>
+                  <Button type="button" variant="secondary" className="min-h-[44px] w-full lg:w-auto" onClick={() => setShowNewCustomerModal(true)}>
+                    + Thêm khách hàng mới
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-slate-700">Tên dự án *</label>
                 <input
-                  className="w-full rounded-3xl border border-slate-200 px-4 py-3"
+                  className="min-h-[44px] w-full rounded-3xl border border-slate-200 px-4 py-3"
                   value={projectName}
                   onChange={(event) => setProjectName(event.target.value)}
                   placeholder="VD: Nhà phố 3 tầng - Nguyễn Văn A"
@@ -614,7 +564,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-slate-700">Loại dự án *</label>
                 <select
-                  className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3"
+                  className="min-h-[44px] w-full rounded-3xl border border-slate-200 bg-white px-4 py-3"
                   value={selectedProjectTypeId}
                   onChange={(event) => setSelectedProjectTypeId(event.target.value)}
                 >
@@ -631,27 +581,27 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
 
             <div className="rounded-3xl border border-slate-200 p-6">
               <p className="text-sm font-semibold text-slate-900">Địa chỉ thi công *</p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <input
-                  className="rounded-3xl border border-slate-200 px-4 py-3"
+                  className="min-h-[44px] rounded-3xl border border-slate-200 px-4 py-3"
                   value={projectFullAddress}
                   onChange={(event) => setProjectFullAddress(event.target.value)}
                   placeholder="Số nhà, tên đường"
                 />
                 <input
-                  className="rounded-3xl border border-slate-200 px-4 py-3"
+                  className="min-h-[44px] rounded-3xl border border-slate-200 px-4 py-3"
                   value={projectWard}
                   onChange={(event) => setProjectWard(event.target.value)}
                   placeholder="Phường / Xã"
                 />
                 <input
-                  className="rounded-3xl border border-slate-200 px-4 py-3"
+                  className="min-h-[44px] rounded-3xl border border-slate-200 px-4 py-3"
                   value={projectDistrict}
                   onChange={(event) => setProjectDistrict(event.target.value)}
                   placeholder="Quận / Huyện"
                 />
                 <select
-                  className="rounded-3xl border border-slate-200 bg-white px-4 py-3"
+                  className="min-h-[44px] rounded-3xl border border-slate-200 bg-white px-4 py-3"
                   value={projectProvince}
                   onChange={(event) => setProjectProvince(event.target.value)}
                 >
@@ -659,10 +609,10 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
                     <option key={name} value={name}>{name}</option>
                   ))}
                 </select>
-                <div className="space-y-2 sm:col-span-2">
+                <div className="space-y-2 sm:col-span-2 lg:col-span-4">
                   <label className="block text-sm font-semibold text-slate-700">Link Google Maps</label>
                   <input
-                    className="w-full rounded-3xl border border-slate-200 px-4 py-3"
+                    className="min-h-[44px] w-full rounded-3xl border border-slate-200 px-4 py-3"
                     value={projectMapsUrl}
                     onChange={(event) => setProjectMapsUrl(event.target.value)}
                     placeholder="https://maps.google.com/..."
@@ -674,14 +624,14 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-2 sm:col-span-1">
                 <label className="block text-sm font-semibold text-slate-700">Khoảng cách từ văn phòng</label>
                 <div className="relative">
                   <input
                     type="number"
                     min="0"
-                    className="w-full rounded-3xl border border-slate-200 px-4 py-3"
+                    className="min-h-[44px] w-full rounded-3xl border border-slate-200 px-4 py-3"
                     value={distanceKm}
                     onChange={(event) => setDistanceKm(event.target.value)}
                     placeholder="Số km"
@@ -690,30 +640,59 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
                 </div>
                 <p className="text-xs text-slate-500">Dùng để tính chi phí di chuyển.</p>
               </div>
-              <div className="grid gap-4">
+              <div className="space-y-2 sm:col-span-1">
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-slate-700">Ngày khởi công *</label>
                   <input
                     type="date"
-                    className="w-full rounded-3xl border border-slate-200 px-4 py-3"
+                    className="min-h-[44px] w-full rounded-3xl border border-slate-200 px-4 py-3"
                     value={projectStart}
-                    onChange={(event) => setProjectStart(event.target.value)}
+                    onChange={(event) => {
+                      setProjectStart(event.target.value)
+                    }}
                   />
                 </div>
+              </div>
+              <div className="space-y-2 sm:col-span-1">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">Tổng thời gian dự kiến (ngày) *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="min-h-[44px] w-full rounded-3xl border border-slate-200 px-4 py-3"
+                    value={estimatedDurationDays}
+                    onChange={(event) => setEstimatedDurationDays(event.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="VD: 30"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2 sm:col-span-1">
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-slate-700">Ngày dự kiến bàn giao *</label>
                   <input
                     type="date"
-                    className="w-full rounded-3xl border border-slate-200 px-4 py-3"
+                    className="min-h-[44px] w-full rounded-3xl border border-slate-200 px-4 py-3"
                     value={projectEnd}
-                    onChange={(event) => setProjectEnd(event.target.value)}
+                    onChange={(event) => {
+                      const nextEnd = event.target.value
+                      setProjectEnd(nextEnd)
+                      if (projectStart && nextEnd) {
+                        const start = new Date(projectStart)
+                        const end = new Date(nextEnd)
+                        const diff = Math.max(0, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)))
+                        setEstimatedDurationDays(String(diff + 1))
+                      }
+                    }}
                   />
+                  <p className="text-xs text-slate-500">Tự động tính theo ngày khởi công + tổng thời gian, nhưng vẫn có thể chỉnh tay.</p>
                 </div>
+              </div>
+              <div className="space-y-2 sm:col-span-2 lg:col-span-4">
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-slate-700">Tổng số ngày thi công</label>
                   <input
                     readOnly
-                    className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3"
+                    className="min-h-[44px] w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3"
                     value={daysCount ? `${daysCount} ngày` : ''}
                     placeholder="Tự tính"
                   />
@@ -721,7 +700,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
               </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-200 p-6">
+            <div className="rounded-3xl border border-slate-200 p-4 sm:p-6">
               <p className="text-sm font-semibold text-slate-900">Giám sát viên phụ trách *</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {supervisors.map((member) => (
@@ -747,7 +726,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-slate-700">Webhook URL</label>
               <input
-                className="w-full rounded-3xl border border-slate-200 px-4 py-3"
+                className="min-h-[44px] w-full rounded-3xl border border-slate-200 px-4 py-3"
                 value={webhookUrl}
                 onChange={(event) => setWebhookUrl(event.target.value)}
                 placeholder="https://n8n.yourdomain.com/webhook/..."
@@ -803,55 +782,61 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
               ) : null}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2 lg:col-span-1">
                 <label className="block text-sm font-semibold text-slate-700">Giá trị hợp đồng (VNĐ) *</label>
                 <input
                   type="text"
-                  className="w-full rounded-3xl border border-slate-200 px-4 py-3"
+                  className="min-h-[44px] w-full rounded-3xl border border-slate-200 px-4 py-3"
                   value={contractValue}
                   onChange={(event) => setContractValue(event.target.value.replace(/[^0-9]/g, ''))}
                   placeholder="1500000000"
                 />
                 <p className="text-xs text-slate-500">{formatContractValueLabel(contractValueNumber)}</p>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 lg:col-span-1">
                 <label className="block text-sm font-semibold text-slate-700">Đã thanh toán (VNĐ)</label>
                 <input
                   type="text"
-                  className="w-full rounded-3xl border border-slate-200 px-4 py-3"
+                  className="min-h-[44px] w-full rounded-3xl border border-slate-200 px-4 py-3"
                   value={paidAmount}
                   onChange={(event) => setPaidAmount(event.target.value.replace(/[^0-9]/g, ''))}
                   placeholder="0"
                 />
                 <p className="text-xs text-slate-500">Đã thanh toán {paidPercent}% · còn lại {formatCurrency(Math.max(0, remainingValue))} đ</p>
               </div>
+              <div className="space-y-2 lg:col-span-1">
+                <label className="block text-sm font-semibold text-slate-700">Tỷ lệ thanh toán</label>
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 h-[62px] flex items-center justify-center">
+                  <span className="text-2xl font-bold text-blue-600">{paidPercent}%</span>
+                </div>
+                <p className="text-xs text-slate-500">Tiến độ thanh toán</p>
+              </div>
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between text-sm text-slate-700">
-                <span>Progress thanh toán</span>
-                <span>{paidPercent}%</span>
+                <span>Progress thanh toán tổng thể</span>
               </div>
-              <div className="mt-2 h-3 overflow-hidden rounded-full bg-white shadow-inner">
+              <div className="mt-3 h-3 overflow-hidden rounded-full bg-white shadow-inner">
                 <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, paidPercent)}%` }} />
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 lg:col-span-2">
               <label className="block text-sm font-semibold text-slate-700">Ghi chú thanh toán</label>
               <textarea
-                className="min-h-[120px] w-full rounded-3xl border border-slate-200 px-4 py-3"
+                className="min-h-[100px] w-full rounded-3xl border border-slate-200 px-4 py-3"
                 value={paymentNote}
                 onChange={(event) => setPaymentNote(event.target.value)}
                 placeholder="VD: Đợt 1 - 30% khi ký HĐ, Đợt 2 - 40% khi xong phần thô..."
               />
             </div>
 
-            <div className="rounded-3xl border border-slate-200 p-6">
+            <div className="rounded-3xl border border-slate-200 p-4 sm:p-6">
               <p className="text-sm font-semibold text-slate-900">Đính kèm (tối đa 5 file)</p>
               <div className="mt-4 flex flex-wrap gap-3">
-                <label className="cursor-pointer rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 hover:bg-slate-50">
+                <label className="cursor-pointer min-h-[44px] flex items-center rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 hover:bg-slate-50">
                   📎 Chọn file
                   <input type="file" hidden multiple accept=".pdf,image/png,image/jpeg" onChange={handleFileChange} />
                 </label>
@@ -878,8 +863,8 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
             <div className="grid gap-4 lg:grid-cols-3">
               <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
                 <p className="text-sm font-semibold text-slate-900">Khách hàng</p>
-                <p className="mt-3 text-lg font-semibold text-slate-900">{selectedCustomer ? selectedCustomer.fullName : newCustomerName}</p>
-                <p className="mt-2 text-sm text-slate-600">{selectedCustomer ? selectedCustomer.phone : newCustomerPhone}</p>
+                <p className="mt-3 text-lg font-semibold text-slate-900">{selectedCustomer?.fullName || 'Chưa chọn khách hàng'}</p>
+                <p className="mt-2 text-sm text-slate-600">{selectedCustomer?.phone || '---'}</p>
                 {selectedCustomer?.address ? <p className="mt-1 text-sm text-slate-600">{selectedCustomer.address}</p> : null}
               </div>
               <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
@@ -908,27 +893,17 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button type="button" variant="secondary" onClick={() => setStep((value) => Math.max(1, value - 1))} disabled={step === 1}>
+        <Button type="button" variant="secondary" className="min-h-[44px] w-full sm:w-auto" onClick={() => setStep((value) => Math.max(1, value - 1))} disabled={step === 1}>
           ← Quay lại
         </Button>
         {step < 4 ? (
           <Button
             type="button"
+            className="min-h-[44px] w-full sm:w-auto"
             onClick={() => {
               if (step === 1 && !canProceedStep1) {
                 showToast('Vui lòng chọn hoặc tạo khách hàng trước khi tiếp tục', 'error')
                 return
-              }
-              if (step === 1 && !selectedCustomerId && hasInlineCustomer) {
-                setPendingNewCustomer({
-                  fullName: newCustomerName.trim(),
-                  phone: newCustomerPhone.trim(),
-                  phone2: newCustomerPhone2.trim() || undefined,
-                  email: newCustomerEmail.trim() || undefined,
-                  address: newCustomerAddress.trim() || undefined,
-                  note: newCustomerNote.trim() || undefined,
-                })
-                setSelectedClientId('')
               }
               if (step === 2 && !canProceedStep2) {
                 showToast('Vui lòng hoàn thành thông tin dự án trước khi tiếp tục', 'error')
@@ -944,7 +919,7 @@ export default function CreateProject({ showToast }: { showToast: (message: stri
             Tiếp theo →
           </Button>
         ) : (
-          <Button type="button" onClick={() => void handleCreate()} disabled={isSubmitting}>
+          <Button type="button" className="min-h-[44px] w-full sm:w-auto" onClick={() => void handleCreate()} disabled={isSubmitting}>
             {isSubmitting ? 'Đang lưu dự án...' : 'Tạo dự án ✓'}
           </Button>
         )}
